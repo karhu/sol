@@ -30,11 +30,6 @@ Context::Context()
     Context::s_counter += 1;
 }
 
-void Context::on_destroy_window(Window &window)
-{
-    m_windows.erase(window.get_id());
-}
-
 Context::~Context()
 {
     Context::s_counter -= 1;
@@ -42,25 +37,6 @@ Context::~Context()
     if (Context::s_counter == 0)
     {
         SDL_Quit();
-    }
-}
-
-// Window construction //
-
-class WindowT : public Window {
-public:
-    WindowT(Context& context, uint32_t width, uint32_t height) : Window(context,width,height) {}
-};
-
-uptr<Window> Context::create_window(uint32_t width, uint32_t height)
-{
-    uptr<Window> window = std::make_unique<WindowT>(*this, width, height);
-
-    if (window->valid()) {
-        m_windows.insert(std::make_pair(window->get_id(), window.get()));
-        return window;
-    } else {
-        return nullptr;
     }
 }
 

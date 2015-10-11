@@ -25,36 +25,13 @@ namespace sol {
         : m_context(context)
     {}
 
-    Window::~Window() {
-        destroy();
-    }
-
-    Window::Window(Context &context, uint32_t width, uint32_t height)
-        : m_context(context)
+    void WindowSystem::ev_close_request(uint32_t window_id)
     {
-        m_sdl_window = SDL_CreateWindow(
-            "",
-            SDL_WINDOWPOS_UNDEFINED,
-            SDL_WINDOWPOS_UNDEFINED,
-            width, height,
-            SDL_WINDOW_RESIZABLE);
+        auto& data = m_data[window_id];
+        SDL_DestroyWindow((SDL_Window*)data.sdl_window);
+        m_data.erase(window_id);
     }
 
-    void Window::destroy()
-    {
-        if (m_sdl_window) {
-            m_context.on_destroy_window(*this);
-            SDL_DestroyWindow((SDL_Window*)m_sdl_window);
-            m_sdl_window = nullptr;
-        }
-    }
 
-    void Window::ev_close_request() {
-        destroy();
-    }
-
-    uint32_t Window::get_id() const {
-        return SDL_GetWindowID((SDL_Window*)m_sdl_window);
-    }
 }
 

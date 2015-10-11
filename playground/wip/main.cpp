@@ -10,13 +10,12 @@ int main(int argc, char* argv[])
     std::cout << "<start>" << std::endl;
 
     auto context = sol::create_context();
-    auto win = context->create_window(800,600);
-    auto win2 = context->create_window(1280,720);
+    auto& ctx = *context;
 
-    auto wh = context->windows().create(800,600);
+    auto wh = ctx.windows().create(800,600);
 
-    while (!context->events().should_quit()) {
-        context->events().update();
+    while (!ctx.events().should_quit()) {
+        ctx.events().update();
     }
 
     std::cout << "<end>" << std::endl;

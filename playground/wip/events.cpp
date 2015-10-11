@@ -28,14 +28,18 @@ namespace sol {
                     //std::cout << "ew: " << ew.type << std::endl;
                     switch (ew.event) {
                         case SDL_WINDOWEVENT_CLOSE:
-                            m_context.m_windows[ew.windowID]->ev_close_request();
-                            m_context.m_window_system;
+                            m_context.m_window_system.ev_close_request(ew.windowID);
                             break;
 
                     }
                 }
             }
         }
+    }
+
+    void wait()
+    {
+        // TODO
     }
 }
 

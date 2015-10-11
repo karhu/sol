@@ -7,6 +7,8 @@ namespace sol {
     class Events {
     public:
         void update();
+        /* blocking version of update() */
+        void wait();
     public:
         bool should_quit() const { return m_should_quit; }
     private:
