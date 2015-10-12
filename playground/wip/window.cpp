@@ -21,6 +21,18 @@ namespace sol {
         return WindowHandle(id);
     }
 
+    uint32_t WindowSystem::count() const
+    {
+        return m_data.size();
+    }
+
+    void WindowSystem::update()
+    {
+        if (m_data.size() == 0) {
+            m_context.events().emit_should_quit();
+        }
+    }
+
     WindowSystem::WindowSystem(Context &context)
         : m_context(context)
     {}

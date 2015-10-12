@@ -10,7 +10,7 @@ namespace sol {
 
     class Context;
 
-    arc::uptr<Context> create_context();
+    arc::uptr<Context> get_context();
 
     class Context {
     public:
@@ -30,7 +30,7 @@ namespace sol {
     private:
         static uint32_t s_counter;
     private:
-        friend arc::uptr<Context> create_context();
+        friend arc::uptr<Context> get_context();
         friend class Events;
         friend class Window;
     };

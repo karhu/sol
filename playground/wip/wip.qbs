@@ -4,6 +4,10 @@ CppApplication {
     type: "application" // To suppress bundle generation on Mac
     consoleApplication: true
     files: [
+        "Canvas.cpp",
+        "Canvas.hpp",
+        "CanvasView.cpp",
+        "CanvasView.hpp",
         "core.hpp",
         "events.cpp",
         "events.hpp",
@@ -11,6 +15,7 @@ CppApplication {
         "context.hpp",
         "context.cpp",
         "result.hpp",
+        "vec2.hpp",
         "window.cpp",
         "window.hpp",
     ]

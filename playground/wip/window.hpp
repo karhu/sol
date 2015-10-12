@@ -23,6 +23,9 @@ namespace sol {
         WindowHandle create(uint32_t width, uint32_t height);
         bool valid(WindowHandle h);
         void destroy(WindowHandle h);
+    public:
+        uint32_t count() const;
+        void update();
     private:
         struct WindowData
         {

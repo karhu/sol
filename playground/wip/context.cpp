@@ -47,7 +47,7 @@ public:
     ContextT() : Context() {}
 };
 
-uptr<Context> create_context()
+uptr<Context> get_context()
 {
     uptr<Context> context = std::make_unique<ContextT>();
     if (context->m_valid) {
