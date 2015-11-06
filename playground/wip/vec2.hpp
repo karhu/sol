@@ -5,6 +5,8 @@
 struct vec2f {
     vec2f() {}
 
+    ~vec2f() = default;
+
     vec2f(float x, float y)
         : x(x)
         , y(y)

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <unordered_map>
 #include "result.hpp"
+#include "vec2.hpp"
 
 namespace sol {
 
@@ -26,6 +27,11 @@ namespace sol {
     public:
         uint32_t count() const;
         void update();
+        void swap(WindowHandle wh);
+    public:
+        vec2f get_window_dimensions(WindowHandle wh);
+        vec2f get_render_target_dimensions(WindowHandle wh);
+        WindowHandle get_main_window();
     private:
         struct WindowData
         {
@@ -37,6 +43,8 @@ namespace sol {
     private:
         Context& m_context;
         std::unordered_map<uint32_t, WindowData> m_data;
+        void* m_gl_context = nullptr;
+        uint32_t m_main_window;
     private:
         friend class Context;
         friend class Events;
