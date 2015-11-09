@@ -7,7 +7,6 @@
 #include <GL/gl3w.h>
 #include <GL/gl.h>
 
-#include "nanovg.h"
 #define NANOVG_GL3_IMPLEMENTATION
 #include "nanovg_gl.h"
 #include "nanovg_gl_utils.h"
@@ -62,30 +61,31 @@ void RenderContext::reset()
 
 void RenderContext::bind(RenderTarget &target)
 {
-    nvgluBindFramebuffer((NVGLUframebuffer*)target._impl);
+    nvgluBindFramebuffer(target.impl());
 }
 
 RenderTarget RenderContext::create_render_target(uint32_t w, uint32_t h, RTFlags flags)
 {
     RenderTarget t;
     auto vg = (NVGcontext*)_impl;
-    t._impl = nvgluCreateFramebuffer(vg, w, h, (int)flags);
-    t._width = w;
-    t._height = h;
+    t.m_impl = nvgluCreateFramebuffer(vg, w, h, (int)flags);
+    t.m_width = w;
+    t.m_height = h;
     return std::move(t);
 }
 
 bool RenderContext::begin_frame(RenderTarget& target, float pixelDensity)
 {
-    auto vg = (NVGcontext*)_impl;
+    auto vg = impl();
     vec2f dim;
 
     if (&target == &RenderTarget::Default) {
         return false;
     } else {
-        dim = vec2f(target._width,target._height);
+        dim = vec2f(target.dimensions());
     }
 
+    //std::cout << dim.x << " / " << dim.y << std::endl;
     nvgBeginFrame(vg, dim.x, dim.y, pixelDensity);
     glViewport(0, 0, dim.x, dim.y);
     return true;
@@ -106,6 +106,14 @@ void RenderContext::end_frame()
 {
     auto vg = (NVGcontext*)_impl;
     nvgEndFrame(vg);
+}
+
+NVGpaint RenderContext::nvg_paint(RenderTarget &rt)
+{
+    auto vg   = impl();
+    auto d = rt.dimensions();
+    return nvgImagePattern(vg, 0.0f, 0.0f, d.x, d.y,
+                           0.0f,  rt.impl()->image, 1.0f);
 }
 
 RenderContext::RenderContext(RenderContext && other)
@@ -131,38 +139,38 @@ RenderTarget::~RenderTarget()
 
 RenderTarget::RenderTarget(RenderTarget && other)
 {
-    _impl = other._impl;
-    other._impl = nullptr;
+    m_impl = other.m_impl;
+    other.m_impl = nullptr;
 
-    _width = other._width;
-    _height = other._height;
+    m_width = other.m_width;
+    m_height = other.m_height;
 }
 
 RenderTarget &RenderTarget::operator=(RenderTarget && other)
 {
     reset();
-    _impl = other._impl;
-    other._impl = nullptr;
+    m_impl = other.m_impl;
+    other.m_impl = nullptr;
 
-    _width = other._width;
-    _height = other._height;
+    m_width = other.m_width;
+    m_height = other.m_height;
 
     return *this;
 }
 
 bool RenderTarget::valid() const
 {
-    return _impl != nullptr;
+    return m_impl != nullptr;
 }
 
 void RenderTarget::reset()
 {
-    if (_impl) {
-        nvgluDeleteFramebuffer((NVGLUframebuffer*) _impl);
-        _impl = nullptr;
+    if (m_impl) {
+        nvgluDeleteFramebuffer(impl());
+        m_impl = nullptr;
 
-        _width = 0;
-        _height = 0;
+        m_width = 0;
+        m_height = 0;
     }
 }
 

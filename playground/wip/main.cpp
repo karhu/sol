@@ -47,14 +47,14 @@ int main(int argc, char* argv[])
     */
 
     MainWindow main_window;
-    miro::Canvas canvas;
-    canvas.init(ctx,800,600);
+    miro::Canvas canvas(render_context,1200,900);
     main_window.m_canvas_view.set_canvas(canvas);
     ctx.events().register_handler(main_window);
 
     while (!ctx.events().should_quit()) {
         ctx.events().update();
-        canvas.update();
+        canvas.update(ctx);
+        canvas.render(ctx);
         ctx.windows().swap(wh);
     }
 

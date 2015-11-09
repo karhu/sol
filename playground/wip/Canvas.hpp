@@ -12,21 +12,20 @@ namespace miro {
 class Canvas
 {
 public:
-    Canvas();
+    Canvas(sol::RenderContext& rctx, uint32_t width, uint32_t height);
     ~Canvas() = default;
 public:
     IActionSink& sink_unconfirmed();
     IActionSink& sink_confirmed();
 public:
-    bool init(sol::Context &context, uint32_t width, uint32_t height);
-    void update();
+    void update(sol::Context &ctx);
+    void render(sol::Context &ctx);
 //private:
     std::unique_ptr<BufferingActionSink> m_sink_unconfirmed;
     std::unique_ptr<BufferingActionSink> m_sink_confirmed;
 
-    sol::RenderContext m_render_context;
+    sol::RenderContext& m_render_context;
     sol::RenderTarget m_render_target;
-    sol::Context* m_context = nullptr;
 };
 
 }

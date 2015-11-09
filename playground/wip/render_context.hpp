@@ -5,6 +5,9 @@
 #include "context.hpp"
 #include "window.hpp"
 
+#include "nanovg.h"
+struct NVGLUframebuffer;
+
 namespace sol {
 
 enum class RTFlags: uint32_t {
@@ -33,7 +36,12 @@ struct RenderContext
     bool begin_frame(sol::WindowHandle wh);
 
     void end_frame();
+public:
+    inline NVGcontext* impl() { return (NVGcontext*) _impl; }
+public:
+    NVGpaint nvg_paint(RenderTarget& rt);
 
+public:
     void* _impl = nullptr;
     sol::Context* m_context = nullptr;
 };
@@ -51,10 +59,15 @@ struct RenderTarget
     void reset();
 
     static RenderTarget Default;
-
-    void* _impl = nullptr;
-    uint32_t _width = 0;
-    uint32_t _height = 0;
+public:
+    inline NVGLUframebuffer* impl() { return (NVGLUframebuffer*) m_impl; }
+    inline vec2u32 dimensions() { return vec2u32{m_width,m_height}; }
+private:
+    void* m_impl = nullptr;
+    uint32_t m_width = 0;
+    uint32_t m_height = 0;
+private:
+    friend class RenderContext;
 };
 
 RenderContext create_render_context();

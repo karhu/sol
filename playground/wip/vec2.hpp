@@ -1,47 +1,45 @@
 #pragma once
 
 #include <cmath>
+#include <stdint.h>
 
-struct vec2f {
-    vec2f() {}
+template <typename T>
+struct vec2 {
+    T x,y;
+public:
+    vec2() {}
+    vec2(T x, T y) : x(x), y(y) {}
+    ~vec2() = default;
 
-    ~vec2f() = default;
-
-    vec2f(float x, float y)
-        : x(x)
-        , y(y)
-    {}
-
-    vec2f operator-() const {
-        return vec2f(-x,-y);
+    template<typename S>
+    explicit vec2(const vec2<S>& other) : x(other.x) , y(other.y) {}
+public:
+    inline vec2 operator-() const {
+        return vec2{-x,-y};
     }
-
-    vec2f operator-(const vec2f& rhs) const {
-        return vec2f(x-rhs.x,y-rhs.y);
+    inline vec2 operator-(const vec2& rhs) const {
+        return vec2(x-rhs.x,y-rhs.y);
     }
-
-    vec2f operator+(const vec2f& rhs) const {
-        return vec2f(x+rhs.x,y+rhs.y);
+    inline vec2 operator+(const vec2& rhs) const {
+        return vec2(x+rhs.x,y+rhs.y);
     }
-
-    vec2f operator/(const vec2f& rhs) const {
-        return vec2f(x/rhs.x,y/rhs.y);
+    inline vec2 operator/(const vec2& rhs) const {
+        return vec2(x/rhs.x,y/rhs.y);
     }
-
-    vec2f operator/(float rhs) const {
-        return vec2f(x/rhs,y/rhs);
+    inline vec2 operator/(T rhs) const {
+        return vec2(x/rhs,y/rhs);
     }
-
-    vec2f operator*(const vec2f& rhs) const {
-        return vec2f(x*rhs.x,y*rhs.y);
+    template<typename S>
+    inline vec2<T> operator*(const vec2<S>& rhs) const {
+        return vec2<T>(x*rhs.x,y*rhs.y);
     }
-
-    vec2f operator*(float rhs) const {
-        return vec2f(x*rhs,y*rhs);
+    inline vec2 operator*(T rhs) const {
+        return vec2(x*rhs,y*rhs);
     }
-
-    float x,y;
 };
+
+using vec2f = vec2<float>;
+using vec2u32 = vec2<uint32_t>;
 
 struct BoundingBox2f {
     vec2f min, max;
