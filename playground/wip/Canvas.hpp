@@ -26,6 +26,9 @@ public:
 
     sol::RenderContext& m_render_context;
     sol::RenderTarget m_render_target;
+    vec2f m_position = {0.5,0.5};
+    float m_rotation = 30.0f;
+    float m_scale = 1.0f;
 };
 
 }

@@ -40,8 +40,8 @@ namespace sol {
                     auto ew = e.tfinger;
 
                     CursorEvent ce;
-                    ce.position = vec2f{ew.x,ew.y};
-                    ce.velocity = vec2f{ew.dx,ew.dy};
+                    ce.position = vec2f{ew.x,1.0f-ew.y};
+                    ce.velocity = vec2f{ew.dx,-ew.dy};
                     ce.timestamp = ew.timestamp;
                     ce.pressure= ew.pressure;
                     ce.type = CursorEvent::Type::Stylus;
@@ -61,8 +61,8 @@ namespace sol {
                     SDL_GetWindowSize(window, &ww, &wh);
 
                     CursorEvent ce;
-                    ce.position = vec2f{(float)ew.x/ww,(float)ew.y/wh};
-                    ce.velocity = vec2f{(float)ew.xrel/ww,(float)ew.yrel/wh};
+                    ce.position = vec2f{(float)ew.x/ww,1.0f - (float)ew.y/wh};
+                    ce.velocity = vec2f{(float)ew.xrel/ww,-(float)ew.yrel/wh};
                     ce.timestamp = ew.timestamp;
                     ce.type = CursorEvent::Type::Mouse;
                     ce.action = CursorEvent::Action::Move;
@@ -80,7 +80,7 @@ namespace sol {
                     SDL_GetWindowSize(window, &ww, &wh);
 
                     CursorEvent ce;
-                    ce.position = vec2f{(float)ew.x/ww,(float)ew.y/wh};
+                    ce.position = vec2f{(float)ew.x/ww,1.0f-(float)ew.y/wh};
                     ce.velocity = vec2f{0,0};
                     ce.timestamp = ew.timestamp;
                     ce.type = CursorEvent::Type::Mouse;

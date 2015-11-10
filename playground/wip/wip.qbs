@@ -12,6 +12,8 @@ CppApplication {
         "Canvas.hpp",
         "CanvasView.cpp",
         "CanvasView.hpp",
+        "Transform2.cpp",
+        "Transform2.hpp",
         "common.hpp",
         "core.hpp",
         "events.cpp",
