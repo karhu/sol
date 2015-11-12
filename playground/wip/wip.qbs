@@ -21,6 +21,10 @@ CppApplication {
         "main.cpp",
         "context.hpp",
         "context.cpp",
+        "memory.cpp",
+        "memory.hpp",
+        "networking.cpp",
+        "networking.hpp",
         "render_context.cpp",
         "render_context.hpp",
         "result.hpp",
@@ -40,6 +44,7 @@ CppApplication {
         'SDL2Main','SDL2','gdi32',
         'avformat', 'avcodec', 'avutil',
         'opengl32', 'glew32', 'glu32',
+        'ws2_32', 'wsock32'  // asio
     ]
     
     
