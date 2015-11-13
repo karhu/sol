@@ -12,6 +12,7 @@
 
 #include "networking.hpp"
 #include "memory.hpp"
+#include "memory/Mallocator.hpp"
 
 #include <tclap/CmdLine.h>
 
@@ -48,6 +49,8 @@ public:
         std::cout << "~MemoryTest(" << mi << ")" << std::endl;
     }
 
+    void inc() { mi++; }
+
     int mi;
     int mi2;
 };
@@ -79,9 +82,10 @@ int main(int argc, char* argv[])
         return_code = client_main(args);
     }
 
-    sol::Mallocator mallocator;
+    sol::memory::Mallocator mallocator;
 
-    auto obj = mallocator.create<MemoryTest>(42);
+    sol::memory::rich_ptr<MemoryTest> obj = mallocator.create<MemoryTest>(42);
+    obj->inc();
 
     obj.destroy();
 
@@ -90,7 +94,7 @@ int main(int argc, char* argv[])
     return return_code;
 }
 
-
+using namespace networking;
 
 int client_main(const ClientArgs& args)
 {
@@ -107,21 +111,12 @@ int client_main(const ClientArgs& args)
     main_window.m_canvas_view.set_canvas(canvas);
     ctx.events().register_handler(main_window);
 
-    networking::Scheduler scheduler;
+    Scheduler scheduler;
+    //Session<TestProtocol> session = Session<TestProtocol>(networking::Connection(scheduler));
+    //session.connect(args.host.c_str(), args.port.c_str());
 
-    asio::ip::tcp::resolver resolver(scheduler.asio());
-    asio::ip::tcp::resolver::query query(
-        asio::ip::tcp::v4(),
-        args.host,
-        args.port);
-    auto iter = resolver.resolve(query);
-    asio::ip::tcp::resolver::iterator end;
-    if (iter == end) {
-        std::cout << "could not resolve server address" << std::endl;
-    }
-    auto endpoint = *iter;
-    networking::client::Session client_session(scheduler,endpoint);
-    client_session.connect();
+    TestSession test_session(scheduler);
+    test_session.connect(args.host.c_str(), args.port.c_str());
 
     while (!ctx.events().should_quit()) {
         ctx.events().update();
@@ -138,7 +133,7 @@ int client_main(const ClientArgs& args)
 int server_main(const ServerArgs& args)
 {
     networking::Scheduler scheduler;
-    networking::server::Listener listener(scheduler,args.port);
+    networking::Listener listener(scheduler,args.port);
     listener.start();
 
     while(true) {
