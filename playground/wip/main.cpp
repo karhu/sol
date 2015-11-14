@@ -10,7 +10,9 @@
 #include "CanvasView.hpp"
 #include "render_context.hpp"
 
-#include "networking.hpp"
+#include "NetworkConnection.hpp"
+#include "networking/Listener.hpp"
+
 #include "memory.hpp"
 #include "memory/Mallocator.hpp"
 
@@ -98,6 +100,7 @@ using namespace networking;
 
 int client_main(const ClientArgs& args)
 {
+
     auto context = sol::get_context();
     auto& ctx = *context;
 
@@ -111,9 +114,9 @@ int client_main(const ClientArgs& args)
     main_window.m_canvas_view.set_canvas(canvas);
     ctx.events().register_handler(main_window);
 
+    std::cout << std::endl;
+
     Scheduler scheduler;
-    //Session<TestProtocol> session = Session<TestProtocol>(networking::Connection(scheduler));
-    //session.connect(args.host.c_str(), args.port.c_str());
 
     TestSession test_session(scheduler);
     test_session.connect(args.host.c_str(), args.port.c_str());
@@ -133,8 +136,15 @@ int client_main(const ClientArgs& args)
 int server_main(const ServerArgs& args)
 {
     networking::Scheduler scheduler;
-    networking::Listener listener(scheduler,args.port);
-    listener.start();
+    networking::Listener listener(scheduler);
+    std::vector<EchoSession> echo_sessions;
+    listener.set_error_handler([](error_ref e){
+       std::cout << "Listener::Error: " << e.message() << std::endl;
+    });
+    listener.set_connection_handler([&](networking::Connection&& con){
+        echo_sessions.emplace_back(std::move(con));
+    });
+    listener.start(args.port);
 
     while(true) {
         auto count = scheduler.asio().poll();
