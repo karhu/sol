@@ -126,3 +126,29 @@ void miro::BufferingActionSink::on_receive(miro::Action action)
 {
     m_buffer.push_back(action);
 }
+
+
+uint32_t miro::ConcurrentActionBuffer::poll()
+{
+    std::deque<Action> tmp;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        std::swap(tmp,m_buffer);
+    }
+    for (auto& a : tmp) {
+        send(a);
+    }
+    return tmp.size();
+}
+
+void miro::ConcurrentActionBuffer::on_receive(miro::Action action)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_buffer.push_back(action);
+}
+
+
+void miro::ActionForwarder::on_receive(miro::Action action)
+{
+    send(action);
+}

@@ -1,5 +1,7 @@
 #pragma once
 
+#define ASIO_HAS_THREADS
+#define ASIO_HAS_STD_MUTEX_AND_CONDVAR
 #define ASIO_STANDALONE
 #include <asio.hpp>
 

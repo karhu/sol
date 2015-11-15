@@ -10,7 +10,7 @@
 #include "CanvasView.hpp"
 #include "render_context.hpp"
 
-#include "NetworkConnection.hpp"
+#include "miro_client.hpp"
 #include "networking/Listener.hpp"
 
 #include "memory.hpp"
@@ -41,22 +41,6 @@ struct ClientArgs {
 int client_main(const ClientArgs& args);
 int server_main(const ServerArgs& args);
 
-class MemoryTest {
-public:
-    MemoryTest(int i) {
-        mi = i;
-    }
-
-    ~MemoryTest() {
-        std::cout << "~MemoryTest(" << mi << ")" << std::endl;
-    }
-
-    void inc() { mi++; }
-
-    int mi;
-    int mi2;
-};
-
 int main(int argc, char* argv[])
 {
     std::cout << "<start>" << std::endl;
@@ -84,13 +68,6 @@ int main(int argc, char* argv[])
         return_code = client_main(args);
     }
 
-    sol::memory::Mallocator mallocator;
-
-    sol::memory::rich_ptr<MemoryTest> obj = mallocator.create<MemoryTest>(42);
-    obj->inc();
-
-    obj.destroy();
-
     std::cout << "<end>" << std::endl;
 
     return return_code;
@@ -116,18 +93,17 @@ int client_main(const ClientArgs& args)
 
     std::cout << std::endl;
 
-    Scheduler scheduler;
+    miro::Client client;
+    client.connect(args.host.c_str(),args.port.c_str());
+    client.start_thread();
 
-    TestSession test_session(scheduler);
-    test_session.connect(args.host.c_str(), args.port.c_str());
+    connect(main_window.m_canvas_view,client.send_pipe());
 
     while (!ctx.events().should_quit()) {
         ctx.events().update();
         canvas.update(ctx);
         canvas.render(ctx);
         ctx.windows().swap(wh);
-        auto count = scheduler.asio().poll();
-        if (count >0) std::cout << count << std::endl;
     }
 
     return 0;
@@ -135,13 +111,15 @@ int client_main(const ClientArgs& args)
 
 int server_main(const ServerArgs& args)
 {
+
     networking::Scheduler scheduler;
     networking::Listener listener(scheduler);
-    std::vector<EchoSession> echo_sessions;
+    std::vector<miro::ActionEchoSession> echo_sessions;
     listener.set_error_handler([](error_ref e){
        std::cout << "Listener::Error: " << e.message() << std::endl;
     });
     listener.set_connection_handler([&](networking::Connection&& con){
+        std::cout << "<new connection> " << std::endl;
         echo_sessions.emplace_back(std::move(con));
     });
     listener.start(args.port);
@@ -150,6 +128,7 @@ int server_main(const ServerArgs& args)
         auto count = scheduler.asio().poll();
         if (count >0) std::cout << count << std::endl;
     }
+
 
     return 0;
 }

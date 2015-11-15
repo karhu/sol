@@ -32,6 +32,8 @@ CppApplication {
         "memory/rich_ptr.cpp",
         "memory/rich_ptr.hpp",
         "memory/util.hpp",
+        "miro_client.cpp",
+        "miro_client.hpp",
         "networking/Connection.cpp",
         "networking/Connection.hpp",
         "networking/Listener.cpp",

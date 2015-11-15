@@ -4,6 +4,8 @@
 #include "vec2.hpp"
 #include <vector>
 #include <deque>
+#include <mutex>
+
 
 namespace miro {
 
@@ -23,6 +25,7 @@ namespace miro {
     struct Action {
         ActionType type = ActionType::Unknown;
         uint16_t timestamp; // timestamp in 10ms steps, rolls over every 10min
+        uint16_t user = 0;
         union Data {
             Data() {}
             StrokeAction stroke;
@@ -37,7 +40,7 @@ namespace miro {
 
     class IActionSource
     {
-    public:
+    protected:
         void send(const Action& action);
     protected:
         virtual bool on_connect(IActionSink& sink);
@@ -50,17 +53,17 @@ namespace miro {
     private:
         friend bool connect(IActionSource &source, IActionSink &sink);
         friend bool disconnect(IActionSource &source, IActionSink &sink);
+        friend class IActionSink;
     };
-
 
     class IActionSink
     {
-    public:
-        void receive(Action action);
     protected:
         virtual bool on_connect(IActionSource& source);
         virtual bool on_disconnect(IActionSource& source);
         virtual void on_receive(Action action);
+    private:
+        void receive(Action action);
     private:
         bool add_source(IActionSource& sink);
         bool remove_source(IActionSource& sink);
@@ -69,6 +72,13 @@ namespace miro {
     private:
         friend bool connect(IActionSource &source, IActionSink &sink);
         friend bool disconnect(IActionSource &source, IActionSink &sink);
+        friend class IActionSource;
+    };
+
+    class ActionForwarder : public IActionSink, public IActionSource
+    {
+    protected:
+        virtual void on_receive(Action action) override;
     };
 
     class BufferingActionSink : public IActionSink {
@@ -81,6 +91,17 @@ namespace miro {
     private:
         std::deque<Action> m_buffer;
     };
+
+    class ConcurrentActionBuffer : public IActionSink, public IActionSource {
+    public:
+        uint32_t poll(); // to be called from the thread that manages connected sinks
+    protected:
+        virtual void on_receive(Action action) override;
+    private:
+        std::deque<Action> m_buffer;
+        std::mutex m_mutex;
+    };
+
 }
 
 
