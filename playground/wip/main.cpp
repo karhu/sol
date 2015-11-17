@@ -116,16 +116,15 @@ int client_main(const ClientArgs& args)
 
 int server_main(const ServerArgs& args)
 {
-
     networking::Scheduler scheduler;
     networking::Listener listener(scheduler);
-    std::vector<miro::ActionEchoSession> echo_sessions;
+    std::vector<std::unique_ptr<miro::ActionEchoSession>> echo_sessions;
     listener.set_error_handler([](error_ref e){
        std::cout << "Listener::Error: " << e.message() << std::endl;
     });
     listener.set_connection_handler([&](networking::Connection&& con){
         std::cout << "<new connection> " << std::endl;
-        echo_sessions.emplace_back(std::move(con));
+        echo_sessions.emplace_back(new miro::ActionEchoSession(std::move(con)));
     });
     listener.start(args.port);
 
