@@ -25,6 +25,11 @@ namespace networking
 
         m_acceptor.listen();
 
+        await_connection();
+        return true;
+    }
+
+    void Listener::await_connection() {
         m_acceptor.async_accept(
             m_next_connection.m_socket,
             m_next_connection.m_endpoint,
@@ -34,8 +39,8 @@ namespace networking
                 } else {
                     m_connection_handler(std::move(m_next_connection));
                     m_next_connection = Connection(*m_scheduler);
+                    await_connection();
                 }
         });
-        return true;
     }
 }

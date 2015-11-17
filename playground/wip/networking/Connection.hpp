@@ -3,6 +3,8 @@
 #include "../common.hpp"
 #include "Scheduler.hpp"
 
+#include <iostream>
+
 namespace networking {
 
 using error = asio::error_code;
@@ -12,7 +14,7 @@ class Connection {
 public:
     Connection(Scheduler& scheduler);
 public:
-    Connection(Connection&& other) = default;
+    Connection(Connection&& other);
     Connection& operator=(Connection&& other);
 public:
     template<typename CB>
@@ -25,6 +27,7 @@ public:
     template<typename CB>
     bool send(void* buffer, std::size_t len, CB cb ) {
         if (m_sending) return false;
+        //std::cout << "[send " << len << "]" << std::endl;
         m_sending = true;
         asio::async_write(
             m_socket,
@@ -40,6 +43,7 @@ public:
     template<typename CB>
     bool receive(void* buffer, std::size_t len, CB cb) {
         if (m_receiving) return false;
+        //std::cout << "[recv " << len << "]" << std::endl;
         m_receiving = true;
         asio::async_read(
             m_socket,

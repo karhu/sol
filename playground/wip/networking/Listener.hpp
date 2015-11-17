@@ -42,6 +42,7 @@ public:
 private:
     void error_handler_nop(error_ref e) { UNUSED(e); }
     void connection_handler_nop(Connection&& c) { UNUSED(c); }
+    void await_connection();
 private:
     Scheduler* m_scheduler;
     asio::ip::tcp::endpoint m_endpoint;

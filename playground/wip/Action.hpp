@@ -92,7 +92,7 @@ namespace miro {
         std::deque<Action> m_buffer;
     };
 
-    class ConcurrentActionBuffer : public IActionSink, public IActionSource {
+    class ConcurrentActionForwarder : public IActionSink, public IActionSource {
     public:
         uint32_t poll(); // to be called from the thread that manages connected sinks
     protected:

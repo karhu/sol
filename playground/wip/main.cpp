@@ -99,8 +99,13 @@ int client_main(const ClientArgs& args)
 
     connect(main_window.m_canvas_view,client.send_pipe());
 
+    miro::ConcurrentActionForwarder incomming_buffer;
+    connect(client.receive_pipe(),incomming_buffer);
+    connect(incomming_buffer,canvas.sink_unconfirmed());
+
     while (!ctx.events().should_quit()) {
         ctx.events().update();
+        incomming_buffer.poll();
         canvas.update(ctx);
         canvas.render(ctx);
         ctx.windows().swap(wh);

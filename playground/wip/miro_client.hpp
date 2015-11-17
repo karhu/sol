@@ -29,7 +29,7 @@ struct MessageHeader {
     uint32_t len = 0;
 };
 
-class ActionBuffer : public IActionSink {
+class ConcurrentActionBuffer : public IActionSink {
 public:
     uint32_t count();
 
@@ -47,7 +47,7 @@ private:
 
 class ClientSession : public networking::Session, public IActionSource {
 public:
-    ClientSession(networking::Scheduler& scheduler, ActionBuffer& send_data);
+    ClientSession(networking::Scheduler& scheduler, ConcurrentActionBuffer& send_data);
 public:
     void notify_send_data_available();
 private:
@@ -63,7 +63,7 @@ private:
     MessageHeader m_receive_header, m_send_header;
     std::vector<Action> m_receive_buffer;
     std::vector<Action> m_send_buffer;
-    ActionBuffer& m_send_data;
+    ConcurrentActionBuffer& m_send_data;
     bool m_send_active = false;
 };
 
@@ -76,7 +76,6 @@ private:
 private:
     void receive_action_header();
     void receive_actions(uint32_t action_count);
-    void handle_outgoing();
     void send_action_header();
     void send_action_data();
 private:
@@ -99,7 +98,7 @@ private:
     void notify_send();
 private:
     networking::Scheduler m_scheduler;
-    ActionBuffer m_send_buffer;
+    ConcurrentActionBuffer m_send_buffer;
     std::unique_ptr<ClientSession> m_client_session;
     std::thread m_thread;
 };
