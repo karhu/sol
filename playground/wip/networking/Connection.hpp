@@ -1,72 +1,31 @@
 #pragma once
 
-#include "../common.hpp"
-#include "Scheduler.hpp"
+#define ASIO_HAS_THREADS
+#define ASIO_HAS_STD_MUTEX_AND_CONDVAR
+#define ASIO_STANDALONE
+#include <asio.hpp>
 
-#include <iostream>
+#include "Socket.hpp"
+#include "../delegate.hpp"
 
 namespace networking {
 
-using error = asio::error_code;
-using error_ref = const error&;
-
 class Connection {
 public:
+    using ConnectionHandler = sol::delegate<void(const asio::error_code& ec)>;
+public:
     Connection(Scheduler& scheduler);
+    Connection(Socket&& socket);
 public:
-    Connection(Connection&& other);
-    Connection& operator=(Connection&& other);
-public:
-    template<typename CB>
-    bool connect(asio::ip::tcp::endpoint endpoint, CB cb ) {
-        m_endpoint = endpoint;
-        m_socket.async_connect(m_endpoint, cb);
-        return true;
-    }
-
-    template<typename CB>
-    bool send(void* buffer, std::size_t len, CB cb ) {
-        if (m_sending) return false;
-        //std::cout << "[send " << len << "]" << std::endl;
-        m_sending = true;
-        asio::async_write(
-            m_socket,
-            asio::buffer(buffer, len),
-            [this, cb](const asio::error_code& ec, std::size_t transferred){
-                UNUSED(transferred);
-                m_sending = false;
-                cb(ec);
-        });
-        return true;
-    }
-
-    template<typename CB>
-    bool receive(void* buffer, std::size_t len, CB cb) {
-        if (m_receiving) return false;
-        //std::cout << "[recv " << len << "]" << std::endl;
-        m_receiving = true;
-        asio::async_read(
-            m_socket,
-            asio::buffer(buffer,len),
-            [this, cb](const asio::error_code& ec, std::size_t transferred) {
-                UNUSED(transferred);
-                m_receiving = false;
-                cb(ec);
-        });
-        return true;
-    }
-
-public:
-    Scheduler& scheduler();
+    bool connect(const char* host, const char* port);
+    Socket& socket() { return m_socket; }
+protected:
+    void set_connection_handler(ConnectionHandler ch);
 private:
-    Scheduler* m_scheduler;
-    asio::ip::tcp::endpoint m_endpoint;
-    asio::ip::tcp::socket m_socket;
+    void nop_handler_connection(error_ref e) { UNUSED(e); }
 private:
-    bool m_sending = false;
-    bool m_receiving = false;
-private:
-    friend class Listener;
+    Socket m_socket;
+    ConnectionHandler m_handler_connection = nullptr;
 };
 
 }

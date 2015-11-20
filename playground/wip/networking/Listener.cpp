@@ -38,7 +38,7 @@ namespace networking
                     m_error_handler(e);
                 } else {
                     m_connection_handler(std::move(m_next_connection));
-                    m_next_connection = Connection(*m_scheduler);
+                    m_next_connection = Socket(*m_scheduler);
                     await_connection();
                 }
         });

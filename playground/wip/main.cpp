@@ -18,6 +18,8 @@
 
 #include <tclap/CmdLine.h>
 
+#include "miro/Server.hpp"
+
 class MainWindow : public sol::EventHandler {
 public:
     virtual void handle_cursor_event(const sol::CursorEvent &event) {
@@ -29,47 +31,49 @@ public:
     Transform2f m_canvas_transform;
 };
 
-struct ServerArgs {
-    int32_t port = 54321;
-};
-
 struct ClientArgs {
     std::string port = "54321";
     std::string host = "localhost";
 };
 
 int client_main(const ClientArgs& args);
-int server_main(const ServerArgs& args);
 
 int main(int argc, char* argv[])
 {
     std::cout << "<start>" << std::endl;
 
-    // read command line arguments
+    // read command line arguments ///////
     bool arg_server = false;
+    ClientArgs client_args;
     try {
         TCLAP::CmdLine cmd("Command description message", ' ', "0.9");
         TCLAP::SwitchArg server_switch("s","server","run server", cmd, false);
+        TCLAP::ValueArg<std::string> host_arg("a","address","host address", false,"localhost","string");
+        cmd.add(host_arg);
 
         // Parse the argv array.
         cmd.parse( argc, argv );
 
         arg_server = server_switch.getValue();
+        client_args.host = host_arg.getValue();
 
     } catch (TCLAP::ArgException &e) {
         std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
     }
     int return_code = 0;
+
+    // run server /////////////////////////
     if (arg_server) {
-        ServerArgs args;
-        return_code = server_main(args);
-    } else {
-        ClientArgs args;
-        return_code = client_main(args);
+        const uint16_t port = 54321;
+        miro::Server server(port);
+        server.run();
+    }
+    // run client /////////////////////////
+    else {
+        return_code = client_main(client_args);
     }
 
     std::cout << "<end>" << std::endl;
-
     return return_code;
 }
 
@@ -110,29 +114,6 @@ int client_main(const ClientArgs& args)
         canvas.render(ctx);
         ctx.windows().swap(wh);
     }
-
-    return 0;
-}
-
-int server_main(const ServerArgs& args)
-{
-    networking::Scheduler scheduler;
-    networking::Listener listener(scheduler);
-    std::vector<std::unique_ptr<miro::ActionEchoSession>> echo_sessions;
-    listener.set_error_handler([](error_ref e){
-       std::cout << "Listener::Error: " << e.message() << std::endl;
-    });
-    listener.set_connection_handler([&](networking::Connection&& con){
-        std::cout << "<new connection> " << std::endl;
-        echo_sessions.emplace_back(new miro::ActionEchoSession(std::move(con)));
-    });
-    listener.start(args.port);
-
-    while(true) {
-        auto count = scheduler.asio().poll();
-        if (count >0) std::cout << count << std::endl;
-    }
-
 
     return 0;
 }

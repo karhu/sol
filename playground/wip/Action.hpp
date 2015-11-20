@@ -14,12 +14,17 @@ namespace miro {
         StrokeBegin,
         StrokeUpdate,
         StrokeEnd,
+        Viewport,
     };
 
     struct StrokeAction {
         vec2f position; // position in the current view frame
         float pressure; // pressure in [0,1]
         uint8_t button; // a button, finger, tip id
+    };
+
+    struct ViewportAction {
+        Transform2f transform;
     };
 
     struct Action {
@@ -29,6 +34,7 @@ namespace miro {
         union Data {
             Data() {}
             StrokeAction stroke;
+            ViewportAction viewport;
         }data;
     };
 
@@ -79,6 +85,11 @@ namespace miro {
     {
     protected:
         virtual void on_receive(Action action) override;
+    };
+
+    class ActionSender : public IActionSource {
+    public:
+        void send(const Action &action) { IActionSource::send(action); }
     };
 
     class BufferingActionSink : public IActionSink {

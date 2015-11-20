@@ -25,7 +25,7 @@ bool TestSession::check_error(error_ref e)
 void TestSession::send_message()
 {
     static char* message = "abrakadabra";
-    connection().send(message,12, [this] (error_ref e){
+    socket().send(message,12, [this] (error_ref e){
         if (check_error(e)) {
             std::cout << "sent" << std::endl;
             receive_message();
@@ -35,7 +35,7 @@ void TestSession::send_message()
 
 void TestSession::receive_message()
 {
-    connection().receive(buffer,12, [this](error_ref e){
+    socket().receive(buffer,12, [this](error_ref e){
        if (check_error(e)) {
             std::cout << "received: " << buffer << std::endl;
        }
@@ -59,7 +59,7 @@ bool EchoSession::check_error(error_ref e)
 
 void EchoSession::send_message()
 {
-    connection().send(buffer,12,[this](error_ref e){
+    socket().send(buffer,12,[this](error_ref e){
        if (check_error(e)) {
            std::cout << "sent: " << buffer << std::endl;
            receive_message();
@@ -69,7 +69,7 @@ void EchoSession::send_message()
 
 void EchoSession::receive_message()
 {
-    connection().receive(buffer,12, [this](error_ref e){
+    socket().receive(buffer,12, [this](error_ref e){
        if (check_error(e)) {
             std::cout << "received: " << buffer << std::endl;
             send_message();
@@ -98,7 +98,7 @@ void MiroServerSession::init_handshake()
 {
     static ServerHandshake handshake;
 
-    connection().send(&handshake,sizeof(ServerHandshake),[this](error_ref e) {
+    socket().send(&handshake,sizeof(ServerHandshake),[this](error_ref e) {
         if (check_error(e)) {
             receive_handshake();
         }
@@ -107,7 +107,7 @@ void MiroServerSession::init_handshake()
 
 void MiroServerSession::receive_handshake()
 {
-    connection().receive(&m_buffer,sizeof(ClientHandshake),[this](error_ref e){
+    socket().receive(&m_buffer,sizeof(ClientHandshake),[this](error_ref e){
         if (check_error(e)) {
             auto is = *buffer_get<ClientHandshake>();
             ClientHandshake should;
@@ -123,7 +123,7 @@ void MiroServerSession::receive_handshake()
 void MiroServerSession::finish_handshake()
 {
     auto data = buffer_emplace<MessageHeader>();
-    connection().send(data,sizeof(MessageHeader),[this](error_ref e){
+    socket().send(data,sizeof(MessageHeader),[this](error_ref e){
         if (check_error(e)) {
             await_instructions();
         }
@@ -153,7 +153,7 @@ bool MiroClientSession::check_error(error_ref e)
 
 void MiroClientSession::receive_handshake_init()
 {
-    connection().receive(m_buffer.data(),sizeof(ServerHandshake), [this](error_ref e) {
+    socket().receive(m_buffer.data(),sizeof(ServerHandshake), [this](error_ref e) {
         if (check_error(e)) {
             auto is = *buffer_get<ServerHandshake>();
             ServerHandshake should;
@@ -169,7 +169,7 @@ void MiroClientSession::receive_handshake_init()
 void MiroClientSession::send_handshake_reply()
 {
     auto data = buffer_emplace<ClientHandshake>();
-    connection().send(data,sizeof(ClientHandshake),[this](error_ref e){
+    socket().send(data,sizeof(ClientHandshake),[this](error_ref e){
         if (check_error(e)) {
             receive_handshake_finish();
         }
@@ -178,7 +178,7 @@ void MiroClientSession::send_handshake_reply()
 
 void MiroClientSession::receive_handshake_finish()
 {
-    connection().receive(m_buffer.data(),sizeof(MessageHeader), [this](error_ref e) {
+    socket().receive(m_buffer.data(),sizeof(MessageHeader), [this](error_ref e) {
         if (check_error(e)) {
             auto h = *buffer_get<MessageHeader>();
             if (h.flag == MessageHeader::Flag::ok) {

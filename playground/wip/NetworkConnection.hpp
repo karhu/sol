@@ -2,17 +2,17 @@
 
 #include "common.hpp"
 #include "delegate.hpp"
-#include "networking/Session.hpp"
+#include "networking/Connection.hpp"
 
 
-class EchoSession : public networking::Session {
+class EchoSession : public networking::Connection {
 public:
     EchoSession(networking::Scheduler& scheduler)
-        : Session(scheduler) {
+        : Connection(scheduler) {
         set_connection_handler(sol::make_delegate(this,connection_handler));
     }
-    EchoSession(networking::Connection&& con)
-        : Session(std::move(con)) {
+    EchoSession(networking::Socket&& sock)
+        : Connection(std::move(sock)) {
         set_connection_handler(sol::make_delegate(this,connection_handler));
     }
 protected:
@@ -25,10 +25,10 @@ private:
     char buffer[128];
 };
 
-class TestSession : public networking::Session {
+class TestSession : public networking::Connection {
 public:
     TestSession(networking::Scheduler& scheduler)
-        : Session(scheduler) {
+        : Connection(scheduler) {
         set_connection_handler(sol::make_delegate(this,connection_handler));
     }
 protected:
@@ -62,10 +62,10 @@ struct MessageHeader {
     uint32_t len = 0;
 };
 
-class MiroServerSession : public networking::Session {
+class MiroServerSession : public networking::Connection {
 public:
-    MiroServerSession(networking::Connection&& connection)
-        : Session(std::move(connection)) {
+    MiroServerSession(networking::Socket&& connection)
+        : Connection(std::move(connection)) {
         set_connection_handler(sol::make_delegate(this,connection_handler));
     }
 private:
@@ -97,10 +97,10 @@ private:
     std::array<char,BUFFER_SIZE> m_buffer;
 };
 
-class MiroClientSession : public networking::Session {
+class MiroClientSession : public networking::Connection {
 public:
     MiroClientSession(networking::Scheduler& scheduler)
-        : Session(scheduler) {
+        : Connection(scheduler) {
         set_connection_handler(sol::make_delegate(this,connection_handler));
     }
 private:

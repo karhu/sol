@@ -7,7 +7,7 @@
 
 #include <functional>
 
-#include "Connection.hpp"
+#include "Socket.hpp"
 
 namespace networking {
 
@@ -17,7 +17,7 @@ using error_ref = const error&;
 class Listener {
 public:
     using ErrorHandler = std::function<void(error_ref e)>;
-    using ConnectionHandler = std::function<void(Connection&& c)>;
+    using ConnectionHandler = std::function<void(Socket&& c)>;
 public:
     Listener(Scheduler& scheduler);
 public:
@@ -41,13 +41,13 @@ public:
 
 private:
     void error_handler_nop(error_ref e) { UNUSED(e); }
-    void connection_handler_nop(Connection&& c) { UNUSED(c); }
+    void connection_handler_nop(Socket&& c) { UNUSED(c); }
     void await_connection();
 private:
     Scheduler* m_scheduler;
     asio::ip::tcp::endpoint m_endpoint;
     asio::ip::tcp::acceptor m_acceptor;
-    Connection m_next_connection;
+    Socket m_next_connection;
 private:
     ErrorHandler m_error_handler = nullptr;
     ConnectionHandler m_connection_handler = nullptr;

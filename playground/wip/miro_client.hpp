@@ -6,8 +6,8 @@
 //#include <deque>
 //#include <mutex>
 
+#include "networking/Socket.hpp"
 #include "networking/Connection.hpp"
-#include "networking/Session.hpp"
 
 #include "Action.hpp"
 #include "common.hpp"
@@ -45,7 +45,7 @@ private:
     sol::delegate<void()>  m_notify_cb = nullptr;
 };
 
-class ClientSession : public networking::Session, public IActionSource {
+class ClientSession : public networking::Connection, public IActionSource {
 public:
     ClientSession(networking::Scheduler& scheduler, ConcurrentActionBuffer& send_data);
 public:
@@ -67,9 +67,9 @@ private:
     bool m_send_active = false;
 };
 
-class ActionEchoSession : public networking::Session {
+class ActionEchoSession : public networking::Connection {
 public:
-    ActionEchoSession(networking::Connection&& connection);
+    ActionEchoSession(networking::Socket&& socket);
 private:
     void connection_handler(networking::error_ref e);
     bool check_error(networking::error_ref e);

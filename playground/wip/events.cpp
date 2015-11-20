@@ -16,8 +16,10 @@ namespace sol {
 
     void Events::update()
     {
+        uint32_t counter = 0;
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
+            counter += 1;
             //std::cout << "e: " << e.type << std::endl;
             switch (e.type) {
                 case SDL_QUIT: {
@@ -94,6 +96,7 @@ namespace sol {
                 }
             }
         }
+        //std::cout << "event_counter: " << counter << std::endl;
     }
 
     bool Events::register_handler(EventHandler &handler)

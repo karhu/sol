@@ -55,7 +55,7 @@ void Client::notify_send()
 // -- ClientSession ------------------ //
 
 ClientSession::ClientSession(Scheduler &scheduler, ConcurrentActionBuffer& send_data)
-    : Session(scheduler)
+    : Connection(scheduler)
     , m_send_data(send_data)
 {
     set_connection_handler(sol::make_delegate(this,connection_handler));
@@ -85,7 +85,7 @@ bool ClientSession::check_error(networking::error_ref e)
 
 void ClientSession::handle_incomming()
 {
-    connection().receive(&m_receive_header,sizeof(MessageHeader),[this](error_ref e){
+    socket().receive(&m_receive_header,sizeof(MessageHeader),[this](error_ref e){
         //std::cout << "<C><waiting to receive header>"<< std::endl;
         if (check_error(e)) {
             //std::cout << "<C>< header received " << m_receive_header.len/sizeof(Action) << ", " <<(int) m_receive_header.flag << " >" << std::endl;
@@ -102,7 +102,7 @@ void ClientSession::receive_actions(uint32_t action_count)
 {
     m_receive_buffer.resize(action_count);
     //std::cout << "<C><waiting to receive actions>"<< std::endl;
-    connection().receive(m_receive_buffer.data(),action_count*sizeof(Action),[this](error_ref e){
+    socket().receive(m_receive_buffer.data(),action_count*sizeof(Action),[this](error_ref e){
         if (check_error(e)) {
             std::cout << "<C>< received " << m_receive_buffer.size() << " actions>" << std::endl;
             for (auto& a : m_receive_buffer) {
@@ -132,7 +132,7 @@ void ClientSession::send_action_header()
     m_send_header.flag = MessageHeader::Flag::action;
     m_send_header.len = m_send_buffer.size()*sizeof(Action);
     //std::cout << "<C><waiting to send header>"<< std::endl;
-    connection().send(&m_send_header,sizeof(MessageHeader),[this](error_ref e) {
+    socket().send(&m_send_header,sizeof(MessageHeader),[this](error_ref e) {
         if (check_error(e)) {
             //std::cout << "<S><header sent " << m_send_header.len/sizeof(Action) << ", " <<(int) m_send_header.flag << " >" << std::endl;
             send_action_data();
@@ -143,7 +143,7 @@ void ClientSession::send_action_header()
 void ClientSession::send_action_data()
 {
     //std::cout << "<C><waiting to send actions>"<< std::endl;
-    connection().send(m_send_buffer.data(),m_send_buffer.size()*sizeof(Action),[this](error_ref e) {
+    socket().send(m_send_buffer.data(),m_send_buffer.size()*sizeof(Action),[this](error_ref e) {
         if (check_error(e)) {
             std::cout << "<C><sent " << m_send_buffer.size() << " actions>" << std::endl;
             handle_outgoing();
@@ -186,8 +186,8 @@ void ConcurrentActionBuffer::on_receive(Action action)
 
 // -- ActionEchoSession ------------ //
 
-ActionEchoSession::ActionEchoSession(Connection &&connection)
-    : networking::Session(std::move(connection))
+ActionEchoSession::ActionEchoSession(Socket &&connection)
+    : networking::Connection(std::move(connection))
 {
     set_connection_handler(sol::make_delegate(this,connection_handler));
 }
@@ -211,7 +211,7 @@ bool ActionEchoSession::check_error(error_ref e)
 void ActionEchoSession::receive_action_header()
 {
     //std::cout << "<S><waiting to receive header>"<< std::endl;
-    connection().receive(&m_receive_header,sizeof(MessageHeader),[this](error_ref e){
+    socket().receive(&m_receive_header,sizeof(MessageHeader),[this](error_ref e){
         if (check_error(e)) {
             //std::cout << "<C>< header received " << m_receive_header.len/sizeof(Action) << ", " <<(int) m_receive_header.flag << " >" << std::endl;
             if (m_receive_header.flag == MessageHeader::Flag::action) {
@@ -227,7 +227,7 @@ void ActionEchoSession::receive_actions(uint32_t action_count)
 {
     m_receive_buffer.resize(action_count);
     //std::cout << "<S><waiting to receive actions>"<< std::endl;
-    connection().receive(m_receive_buffer.data(),action_count*sizeof(Action),[this](error_ref e){
+    socket().receive(m_receive_buffer.data(),action_count*sizeof(Action),[this](error_ref e){
         if (check_error(e)) {
             std::cout << "<S><received " << m_receive_buffer.size() << " actions>" << std::endl;
 
@@ -243,7 +243,7 @@ void ActionEchoSession::receive_actions(uint32_t action_count)
 void ActionEchoSession::send_action_header()
 {
     //std::cout << "<S><waiting to send header>" << std::endl;
-    connection().send(&m_receive_header,sizeof(MessageHeader),[this](error_ref e) {
+    socket().send(&m_receive_header,sizeof(MessageHeader),[this](error_ref e) {
         if (check_error(e)) {
             //std::cout << "<S><header sent " << m_receive_header.len/sizeof(Action) << ", " <<(int) m_receive_header.flag << " >" << std::endl;
             send_action_data();
@@ -254,7 +254,7 @@ void ActionEchoSession::send_action_header()
 void ActionEchoSession::send_action_data()
 {
     //std::cout << "<S><waiting to send actions>" << std::endl;
-    connection().send(m_receive_buffer.data(),
+    socket().send(m_receive_buffer.data(),
                       m_receive_buffer.size()*sizeof(Action),
                       [this](error_ref e){
         if (check_error(e)) {
