@@ -97,6 +97,27 @@ void Canvas::update(sol::Context& ctx)
         nvgFill(vg);
     }
 
+    // handle confirmed events
+    // these might come from different users
+    count = m_sink_confirmed->count();
+    for (uint32_t i=0; i<count; i++)
+    {
+        auto a = m_sink_confirmed->pop_front();
+        switch (a.type) {
+            case ActionType::StrokeBegin:
+            case ActionType::StrokeEnd:
+            case ActionType::StrokeUpdate:
+            {
+                auto p = a.data.stroke.position;
+                p = transform_point(p,t_winr_canvasa);
+
+                nvgBeginPath(vg);
+                nvgCircle(vg, p.x, p.y, 3);
+                nvgFill(vg);
+            }
+        }
+    }
+
     m_render_context.end_frame();
 }
 
@@ -141,6 +162,18 @@ void Canvas::render(sol::Context &ctx)
     nvgFill(vg);
     m_render_context.end_frame();
 
+}
+
+Canvas::UserContext* Canvas::get_user_context(uint16_t id)
+{
+    if (id < m_user_contexts.size()) return nullptr;
+    return &m_user_contexts[id];
+}
+
+void Canvas::init_user_context(uint16_t id, const Canvas::UserContext &context)
+{
+    if (id < m_user_contexts.size()) m_user_contexts.resize(id+1);
+    m_user_contexts[id] = context;
 }
 
 }

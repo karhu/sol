@@ -9,25 +9,27 @@ using namespace networking;
 namespace miro
 {
 
-Client::Client()
+ClientSession::ClientSession()
 {
-    m_client_session.reset(new ClientSession(m_scheduler, m_send_buffer));
+    m_client_session.reset(new ClientConnection(m_scheduler, m_send_buffer));
     m_send_buffer.set_notify_callback(sol::make_delegate(this,notify_send));
 }
 
 
-Client::~Client()
+ClientSession::~ClientSession()
 {
     m_scheduler.stop();
     m_thread.join();
 }
 
-bool Client::connect(const char *host, const char *port)
+
+
+bool ClientSession::connect(const char *host, const char *port)
 {
     return m_client_session->connect(host,port);
 }
 
-void Client::start_thread()
+void ClientSession::start_thread()
 {
     m_thread = std::thread([this](){
         m_scheduler.run();
@@ -35,17 +37,17 @@ void Client::start_thread()
     });
 }
 
-IActionSink &Client::send_pipe()
+IActionSink &ClientSession::send_pipe()
 {
     return m_send_buffer;
 }
 
-IActionSource &Client::receive_pipe()
+IActionSource &ClientSession::receive_pipe()
 {
     return *m_client_session;
 }
 
-void Client::notify_send()
+void ClientSession::notify_send()
 {
     m_scheduler.asio().post([this](){
         m_client_session->notify_send_data_available();
@@ -54,19 +56,19 @@ void Client::notify_send()
 
 // -- ClientSession ------------------ //
 
-ClientSession::ClientSession(Scheduler &scheduler, ConcurrentActionBuffer& send_data)
+ClientConnection::ClientConnection(Scheduler &scheduler, ConcurrentActionBuffer& send_data)
     : Connection(scheduler)
     , m_send_data(send_data)
 {
     set_connection_handler(sol::make_delegate(this,connection_handler));
 }
 
-void ClientSession::notify_send_data_available()
+void ClientConnection::notify_send_data_available()
 {
     if (!m_send_active) handle_outgoing();
 }
 
-void ClientSession::connection_handler(networking::error_ref e)
+void ClientConnection::connection_handler(networking::error_ref e)
 {
    if (check_error(e)) {
        handle_incomming();
@@ -74,7 +76,7 @@ void ClientSession::connection_handler(networking::error_ref e)
    }
 }
 
-bool ClientSession::check_error(networking::error_ref e)
+bool ClientConnection::check_error(networking::error_ref e)
 {
     if (e) {
         std::cout << "MiroClientSession::error: " << e.message() << std::endl;
@@ -83,7 +85,7 @@ bool ClientSession::check_error(networking::error_ref e)
     return true;
 }
 
-void ClientSession::handle_incomming()
+void ClientConnection::handle_incomming()
 {
     socket().receive(&m_receive_header,sizeof(MessageHeader),[this](error_ref e){
         //std::cout << "<C><waiting to receive header>"<< std::endl;
@@ -98,7 +100,7 @@ void ClientSession::handle_incomming()
     });
 }
 
-void ClientSession::receive_actions(uint32_t action_count)
+void ClientConnection::receive_actions(uint32_t action_count)
 {
     m_receive_buffer.resize(action_count);
     //std::cout << "<C><waiting to receive actions>"<< std::endl;
@@ -114,7 +116,7 @@ void ClientSession::receive_actions(uint32_t action_count)
     });
 }
 
-void ClientSession::handle_outgoing()
+void ClientConnection::handle_outgoing()
 {
     uint32_t available = m_send_data.count();
     if (available) {
@@ -125,7 +127,7 @@ void ClientSession::handle_outgoing()
     }
 }
 
-void ClientSession::send_action_header()
+void ClientConnection::send_action_header()
 {
     m_send_data.get(m_send_data.count(),m_send_buffer);
     m_send_header = MessageHeader();
@@ -140,7 +142,7 @@ void ClientSession::send_action_header()
     });
 }
 
-void ClientSession::send_action_data()
+void ClientConnection::send_action_data()
 {
     //std::cout << "<C><waiting to send actions>"<< std::endl;
     socket().send(m_send_buffer.data(),m_send_buffer.size()*sizeof(Action),[this](error_ref e) {

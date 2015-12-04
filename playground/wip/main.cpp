@@ -1,42 +1,47 @@
 #include <iostream>
-#include <SDL2/SDL.h>
-
-#include "context.hpp"
-#include "window.hpp"
-
-#include "VideoPlaybackTest.hpp"
-
-#include "Canvas.hpp"
-#include "CanvasView.hpp"
-#include "render_context.hpp"
-
-#include "miro_client.hpp"
-#include "networking/Listener.hpp"
-
-#include "memory.hpp"
-#include "memory/Mallocator.hpp"
 
 #include <tclap/CmdLine.h>
 
 #include "miro/Server.hpp"
+#include "miro/Client.hpp"
 
-class MainWindow : public sol::EventHandler {
-public:
-    virtual void handle_cursor_event(const sol::CursorEvent &event) {
-        m_canvas_view.handle_cursor_event(event);
-    }
-
-public:
-    CanvasView m_canvas_view;
-    Transform2f m_canvas_transform;
-};
+#include "Action.hpp"
 
 struct ClientArgs {
     std::string port = "54321";
     std::string host = "localhost";
 };
 
-int client_main(const ClientArgs& args);
+void action_test() {
+    using namespace miro::v3;
+
+    std::cout << "[ACTION-TEST] start" << std::endl;
+
+    ActionBuffer b;
+    bool ok;
+    ok = write_stroke_action(b,HeaderData(),vec2f(1,1),1.0f,0,0);
+    if (!ok) std::cout << "<<error>> write_stroke_action 1" << std::endl;
+    ok = write_message_action(b,HeaderData(),"Hello World!",42);
+    if (!ok) std::cout << "<<error>> write_message_action 42" << std::endl;
+    ok = write_stroke_action(b,HeaderData(),vec2f(2,2),2.0f,0,0);
+    if (!ok) std::cout << "<<error>> write_stroke_action 2" << std::endl;
+
+    StrokeActionRef sa1(b,0);
+    if (!sa1.valid()) std::cout << "<<error>> StrokeActionRef 1" << std::endl;
+    else
+        std::cout << sa1.pressure() << std::endl;
+    StrokeActionRef sa2(b,2);
+    if (!sa2.valid()) std::cout << "<<error>> StrokeActionRef 2" << std::endl;
+    else
+        std::cout << sa2.pressure() << std::endl;
+    MessageActionRef ma(b,1);
+    if (!ma.valid()) std::cout << "<<error>> StrokeActionRef 2" << std::endl;
+    else {
+        std::cout << std::string(ma.message().m_front,ma.message().m_end) << std::endl;
+    }
+
+    std::cout << "[ACTION-TEST] end" << std::endl;
+}
 
 int main(int argc, char* argv[])
 {
@@ -48,7 +53,7 @@ int main(int argc, char* argv[])
     try {
         TCLAP::CmdLine cmd("Command description message", ' ', "0.9");
         TCLAP::SwitchArg server_switch("s","server","run server", cmd, false);
-        TCLAP::ValueArg<std::string> host_arg("a","address","host address", false,"localhost","string");
+        TCLAP::ValueArg<std::string> host_arg("a","host","host address", false,"localhost","string");
         cmd.add(host_arg);
 
         // Parse the argv array.
@@ -70,50 +75,12 @@ int main(int argc, char* argv[])
     }
     // run client /////////////////////////
     else {
-        return_code = client_main(client_args);
+        miro::Client client(client_args.host);
+        return_code = client.run();
     }
+
+    action_test();
 
     std::cout << "<end>" << std::endl;
     return return_code;
-}
-
-using namespace networking;
-
-int client_main(const ClientArgs& args)
-{
-
-    auto context = sol::get_context();
-    auto& ctx = *context;
-
-    auto wh = ctx.windows().create(900,600);
-
-    sol::RenderContext render_context;
-    render_context.init(ctx);
-
-    MainWindow main_window;
-    miro::Canvas canvas(render_context,1200,900);
-    main_window.m_canvas_view.set_canvas(canvas);
-    ctx.events().register_handler(main_window);
-
-    std::cout << std::endl;
-
-    miro::Client client;
-    client.connect(args.host.c_str(),args.port.c_str());
-    client.start_thread();
-
-    connect(main_window.m_canvas_view,client.send_pipe());
-
-    miro::ConcurrentActionForwarder incomming_buffer;
-    connect(client.receive_pipe(),incomming_buffer);
-    connect(incomming_buffer,canvas.sink_unconfirmed());
-
-    while (!ctx.events().should_quit()) {
-        ctx.events().update();
-        incomming_buffer.poll();
-        canvas.update(ctx);
-        canvas.render(ctx);
-        ctx.windows().swap(wh);
-    }
-
-    return 0;
 }

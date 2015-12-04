@@ -20,9 +20,20 @@ public:
 public:
     void update(sol::Context &ctx);
     void render(sol::Context &ctx);
-//private:
+private:
+    struct UserContext {
+        Transform2f m_view;
+        std::string m_name;
+    };
+private:
+    UserContext* get_user_context(uint16_t id);
+    void init_user_context(uint16_t id, const UserContext& context);
+private:
     std::unique_ptr<BufferingActionSink> m_sink_unconfirmed;
     std::unique_ptr<BufferingActionSink> m_sink_confirmed;
+
+    std::vector<UserContext> m_user_contexts;
+    uint16_t local_user_id = 0;
 
     sol::RenderContext& m_render_context;
     sol::RenderTarget m_render_target;

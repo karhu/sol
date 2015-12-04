@@ -45,9 +45,9 @@ private:
     sol::delegate<void()>  m_notify_cb = nullptr;
 };
 
-class ClientSession : public networking::Connection, public IActionSource {
+class ClientConnection : public networking::Connection, public IActionSource {
 public:
-    ClientSession(networking::Scheduler& scheduler, ConcurrentActionBuffer& send_data);
+    ClientConnection(networking::Scheduler& scheduler, ConcurrentActionBuffer& send_data);
 public:
     void notify_send_data_available();
 private:
@@ -84,10 +84,10 @@ private:
     std::vector<Action> m_send_buffer;
 };
 
-class Client {
+class ClientSession {
 public:
-    Client();
-    ~Client();
+    ClientSession();
+    ~ClientSession();
 public:
     void start_thread();
     bool connect(const char* host, const char* port);
@@ -99,7 +99,7 @@ private:
 private:
     networking::Scheduler m_scheduler;
     ConcurrentActionBuffer m_send_buffer;
-    std::unique_ptr<ClientSession> m_client_session;
+    std::unique_ptr<ClientConnection> m_client_session;
     std::thread m_thread;
 };
 

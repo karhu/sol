@@ -16,6 +16,8 @@ CppApplication {
         "NetworkConnection.hpp",
         "Transform2.cpp",
         "Transform2.hpp",
+        "capnp/test.capnp.c++",
+        "capnp/test.capnp.h",
         "common.hpp",
         "core.hpp",
         "delegate.hpp",
@@ -32,6 +34,8 @@ CppApplication {
         "memory/rich_ptr.cpp",
         "memory/rich_ptr.hpp",
         "memory/util.hpp",
+        "miro/Client.cpp",
+        "miro/Client.hpp",
         "miro/MessageHeader.hpp",
         "miro/Server.cpp",
         "miro/Server.hpp",
@@ -64,7 +68,8 @@ CppApplication {
         'SDL2Main','SDL2','gdi32',
         'avformat', 'avcodec', 'avutil',
         'opengl32', 'glew32', 'glu32',
-        'ws2_32', 'wsock32'  // asio
+        'ws2_32', 'wsock32',            // asio
+        //'capnp', 'kj', // capnproto
     ]
     
     
