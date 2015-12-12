@@ -48,11 +48,11 @@ int32_t miro::Client::run()
     session.connect(m_host.c_str(),m_port.c_str());
     session.start_thread();
 
-    connect(main_window.m_canvas_view,session.send_pipe());
+    connect(main_window.m_canvas_view.get_action_source(),session.send_pipe());
 
     miro::ConcurrentActionForwarder incomming_buffer;
     connect(session.receive_pipe(),incomming_buffer);
-    connect(incomming_buffer,canvas.sink_unconfirmed());
+    connect(incomming_buffer,canvas.sink_confirmed());
 
     while (!ctx.events().should_quit()) {
         ctx.events().update();

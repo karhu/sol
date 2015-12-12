@@ -9,17 +9,12 @@ namespace miro {
 
 class ServerSession;
 
-class NotifyingActionBuffer : public IActionSink {
-public:
-    uint32_t count();
-    void get(std::vector<Action>& output, uint32_t count = -1);
+class NotifyingActionBuffer : public BufferingActionSink {
 public:
     void set_notify_callback(sol::delegate<void()> cb);
-
 protected:
-    virtual void on_receive(Action action) override;
+    virtual void on_receive(actions::ActionRange range) override;
 private:
-    std::deque<Action> m_buffer;
     sol::delegate<void()>  m_notify_cb = nullptr;
 };
 
@@ -33,17 +28,23 @@ private:
     void connection_handler(networking::error_ref e);
     bool check_error(networking::error_ref e);
 private:
-    void receive_action_header();
-    void receive_actions();
-    void send_action_header();
+    void handle_incomming();
+    void receive_action_headers(uint16_t len_header, uint16_t len_data);
+    void receive_action_data(uint16_t len_header, uint16_t len_data);
+
+    void send_action_message();
+    void send_action_headers();
     void send_action_data();
-    void send_actions();
+    void handle_outgoing();
+
     void notify_send();
 private:
     ServerSession& m_session;
+
     MessageHeader m_receive_header, m_send_header;
-    std::vector<Action> m_receive_buffer;
-    std::vector<Action> m_send_buffer;
+    actions::ActionBuffer m_buffer_receive;
+    actions::ActionBuffer m_buffer_send;
+
     ActionSender m_receive_pipe;
     NotifyingActionBuffer m_send_pipe;
 

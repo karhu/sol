@@ -30,6 +30,39 @@ class SinkUnconfirmed : public BufferingActionSink
 public:
     SinkUnconfirmed(Canvas& c) : m_canvas(c) {}
     ~SinkUnconfirmed() {}
+protected:
+    virtual void on_receive(actions::ActionRange action_range) override
+    {
+        auto vg = m_canvas.m_render_context.impl();
+        m_canvas.m_render_context.begin_frame(m_canvas.m_render_target);
+        m_canvas.m_render_context.bind(m_canvas.m_render_target);
+
+        nvgResetTransform(vg);
+        nvgReset(vg);
+        nvgFillColor(vg, nvgRGBA(255,0,0,128));
+
+        for (uint16_t i=0; i < action_range.count(); i++) {
+            auto ar = action_range.get(i);
+            switch (ar.header().meta.type) {
+                case miro::actions::ActionType::Stroke:
+                {
+                    auto a = ar.data<actions::StrokeActionRef>();
+                    auto p = a.position();
+                    p = transform_point(p,m_canvas.m_transform_winr_canvasa);
+
+                    nvgBeginPath(vg);
+                    nvgCircle(vg, p.x, p.y, 3);
+                    nvgFill(vg);
+                    break;
+                }
+                default:
+                    std::cout << "unhandled action type" << std::endl;
+            }
+        }
+
+        m_canvas.m_render_context.end_frame();
+    }
+
 private:
     Canvas& m_canvas;
 };
@@ -37,8 +70,8 @@ private:
 Canvas::Canvas(sol::RenderContext& rctx, uint32_t width, uint32_t height)
     : m_render_context(rctx)
 {
-    m_sink_confirmed.reset(new SinkConfirmed(*this));
-    m_sink_unconfirmed.reset(new SinkUnconfirmed(*this));
+    m_sink_confirmed.reset(new SinkUnconfirmed(*this)); // TODO change this later
+    m_sink_unconfirmed.reset(new BufferingActionSink());
     m_render_target = m_render_context.create_render_target(width,height);
 
     m_render_context.begin_frame(m_render_target);
@@ -78,6 +111,9 @@ void Canvas::update(sol::Context& ctx)
     const T2 t_wina_canvasr = t_canvas_win.inverse();
     const T2 t_winr_canvasa = T2::Scale(win_dim) * t_wina_canvasr * T2::Scale(fb_dim);
 
+    m_transform_winr_canvasa = t_winr_canvasa;
+    return; // TODO
+
     m_render_context.begin_frame(m_render_target);
     m_render_context.bind(m_render_target);
 
@@ -85,6 +121,7 @@ void Canvas::update(sol::Context& ctx)
     nvgReset(vg);
     nvgFillColor(vg, nvgRGBA(255,0,0,128));
 
+    /*
     auto count = m_sink_unconfirmed->count();
     for (uint32_t i=0; i<count; i++)
     {
@@ -92,9 +129,9 @@ void Canvas::update(sol::Context& ctx)
         auto p = a.data.stroke.position;
         p = transform_point(p,t_winr_canvasa);
 
-        nvgBeginPath(vg);
-        nvgCircle(vg, p.x, p.y, 3);
-        nvgFill(vg);
+        //nvgBeginPath(vg);
+        //nvgCircle(vg, p.x, p.y, 3);
+        //nvgFill(vg);
     }
 
     // handle confirmed events
@@ -111,12 +148,13 @@ void Canvas::update(sol::Context& ctx)
                 auto p = a.data.stroke.position;
                 p = transform_point(p,t_winr_canvasa);
 
-                nvgBeginPath(vg);
-                nvgCircle(vg, p.x, p.y, 3);
-                nvgFill(vg);
+                //nvgBeginPath(vg);
+                //nvgCircle(vg, p.x, p.y, 3);
+                //nvgFill(vg);
             }
         }
     }
+    */
 
     m_render_context.end_frame();
 }
@@ -174,6 +212,11 @@ void Canvas::init_user_context(uint16_t id, const Canvas::UserContext &context)
 {
     if (id < m_user_contexts.size()) m_user_contexts.resize(id+1);
     m_user_contexts[id] = context;
+}
+
+void Canvas::_handle_unconfirmed(actions::ActionRange range)
+{
+
 }
 
 }

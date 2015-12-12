@@ -20,13 +20,15 @@ namespace miro {
 
 struct MessageHeader {
     enum class Flag : uint8_t {
-        ok = 0,
-        error = 1,
-        action = 2,
+        undefined = 0,
+        ok = 1,
+        error = 2,
+        action = 3,
     };
     Flag     flag = Flag::ok;
-    uint8_t  padding[3];
-    uint32_t len = 0;
+    uint8_t  padding;
+    uint16_t len1 = 0;
+    uint16_t len2 = 0;
 };
 
 class ConcurrentActionBuffer : public IActionSink {
@@ -36,7 +38,6 @@ public:
     void get(uint32_t count, std::vector<Action>& output);
 public:
     void set_notify_callback(sol::delegate<void()> cb);
-
 protected:
     virtual void on_receive(Action action) override;
 private:
@@ -47,7 +48,7 @@ private:
 
 class ClientConnection : public networking::Connection, public IActionSource {
 public:
-    ClientConnection(networking::Scheduler& scheduler, ConcurrentActionBuffer& send_data);
+    ClientConnection(networking::Scheduler& scheduler, ConcurrentBufferingActionSink& send_data);
 public:
     void notify_send_data_available();
 private:
@@ -55,33 +56,21 @@ private:
     bool check_error(networking::error_ref e);
 private:
     void handle_incomming();
-    void receive_actions(uint32_t action_count);
-    void handle_outgoing();
-    void send_action_header();
-    void send_action_data();
-private:
-    MessageHeader m_receive_header, m_send_header;
-    std::vector<Action> m_receive_buffer;
-    std::vector<Action> m_send_buffer;
-    ConcurrentActionBuffer& m_send_data;
-    bool m_send_active = false;
-};
+    void receive_action_headers();
+    void receive_action_data();
 
-class ActionEchoSession : public networking::Connection {
-public:
-    ActionEchoSession(networking::Socket&& socket);
-private:
-    void connection_handler(networking::error_ref e);
-    bool check_error(networking::error_ref e);
-private:
-    void receive_action_header();
-    void receive_actions(uint32_t action_count);
-    void send_action_header();
+    void handle_outgoing();
+    void send_action_message();
+    void send_action_headers();
     void send_action_data();
 private:
     MessageHeader m_receive_header, m_send_header;
-    std::vector<Action> m_receive_buffer;
-    std::vector<Action> m_send_buffer;
+
+    actions::ActionBuffer m_receive_buffer;
+    actions::ActionBuffer m_send_buffer;
+
+    ConcurrentBufferingActionSink& m_send_data;
+    bool m_send_active = false;
 };
 
 class ClientSession {
@@ -98,8 +87,8 @@ private:
     void notify_send();
 private:
     networking::Scheduler m_scheduler;
-    ConcurrentActionBuffer m_send_buffer;
-    std::unique_ptr<ClientConnection> m_client_session;
+    ConcurrentBufferingActionSink m_send_buffer;
+    std::unique_ptr<ClientConnection> m_client_connection;
     std::thread m_thread;
 };
 

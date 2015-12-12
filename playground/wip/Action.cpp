@@ -51,6 +51,13 @@ void miro::IActionSource::send(const miro::Action &action)
     }
 }
 
+void miro::IActionSource::send(actions::ActionRange action_range)
+{
+    for (auto& s : m_sinks) {
+        s->receive(action_range);
+    }
+}
+
 bool miro::IActionSource::on_connect(miro::IActionSink &sink)
 {
     return true;
@@ -78,6 +85,11 @@ void miro::IActionSink::receive(miro::Action action)
    on_receive(action);
 }
 
+void miro::IActionSink::receive(actions::ActionRange action_range)
+{
+   on_receive(action_range);
+}
+
 bool miro::IActionSink::on_connect(miro::IActionSource &source)
 {
     return true;
@@ -93,6 +105,12 @@ void miro::IActionSink::on_receive(miro::Action action)
     // noop
 }
 
+void miro::IActionSink::on_receive(actions::ActionRange action_range)
+{
+   // noop
+}
+
+
 bool miro::IActionSink::add_source(miro::IActionSource &source)
 {
     m_sources.push_back(&source);
@@ -104,51 +122,70 @@ bool miro::IActionSink::remove_source(miro::IActionSource &source)
     return sol::bag_remove_first(m_sources,&source);
 }
 
-
-uint32_t miro::BufferingActionSink::count() const
+miro::BufferingActionSink::BufferingActionSink()
+    : m_current_buffer(new actions::ActionBuffer())
 {
-    return m_buffer.size();
-}
-
-miro::Action miro::BufferingActionSink::peak_front() const
-{
-    return m_buffer.front();
-}
-
-miro::Action miro::BufferingActionSink::pop_front()
-{
-    Action tmp = m_buffer.front();
-    m_buffer.pop_front();
-    return tmp;
-}
-
-void miro::BufferingActionSink::on_receive(miro::Action action)
-{
-    m_buffer.push_back(action);
 }
 
 
-uint32_t miro::ConcurrentActionForwarder::poll()
+void miro::BufferingActionSink::on_receive(miro::actions::ActionRange range)
 {
-    std::deque<Action> tmp;
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        std::swap(tmp,m_buffer);
+    auto count = range.count();
+    while (true) {
+        range = m_current_buffer->copy_action(range);
+        if (range.count() == 0 ) break;
+        end_current_write_buffer();
     }
-    for (auto& a : tmp) {
-        send(a);
-    }
-    return tmp.size();
+    m_count += count;
 }
 
-void miro::ConcurrentActionForwarder::on_receive(miro::Action action)
+void miro::BufferingActionSink::end_current_write_buffer()
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_buffer.push_back(action);
+    m_full_buffers.push_back(std::move(m_current_buffer));
+    if (m_available_buffers.empty())
+        m_current_buffer.reset(new actions::ActionBuffer());
+    else {
+        m_current_buffer = std::move(m_available_buffers.back());
+        m_available_buffers.pop_back();
+    }
 }
 
+void miro::ConcurrentActionForwarder::poll()
+{
+    m_current_buffer->count();
+    handle_actions([this](actions::ActionRange range){
+       if (range.count() > 0)
+           send(range);
+       return true;
+    });
+}
 
 void miro::ActionForwarder::on_receive(miro::Action action)
 {
     send(action);
+}
+
+const miro::actions::ActionHeader &miro::actions::ActionRef::header() const
+{
+    return m_buffer->m_headers[m_index];
+}
+
+miro::actions::MemoryRange miro::actions::ActionRef::data_memory()
+{
+    return m_buffer->get_memory(header().memory);
+}
+
+
+void miro::ConcurrentBufferingActionSink::set_notify_callback(sol::delegate<void ()> cb)
+{
+    m_notify_cb = cb;
+}
+
+void miro::ConcurrentBufferingActionSink::on_receive(miro::actions::ActionRange range)
+{
+    {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    BufferingActionSink::on_receive(range);
+    }
+    if (m_notify_cb) m_notify_cb();
 }

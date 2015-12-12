@@ -7,23 +7,25 @@
 
 #include "Action.hpp"
 
+#include "sol/meta/type_name.hpp"
+
 struct ClientArgs {
     std::string port = "54321";
     std::string host = "localhost";
 };
 
 void action_test() {
-    using namespace miro::v3;
+    using namespace miro::actions;
 
     std::cout << "[ACTION-TEST] start" << std::endl;
 
     ActionBuffer b;
     bool ok;
-    ok = write_stroke_action(b,HeaderData(),vec2f(1,1),1.0f,0,0);
+    ok = write_stroke_action(b,HeaderMeta(),vec2f(1,1),1.0f,0,0);
     if (!ok) std::cout << "<<error>> write_stroke_action 1" << std::endl;
-    ok = write_message_action(b,HeaderData(),"Hello World!",42);
+    ok = write_message_action(b,HeaderMeta(),"Hello World!",42);
     if (!ok) std::cout << "<<error>> write_message_action 42" << std::endl;
-    ok = write_stroke_action(b,HeaderData(),vec2f(2,2),2.0f,0,0);
+    ok = write_stroke_action(b,HeaderMeta(),vec2f(2,2),2.0f,0,0);
     if (!ok) std::cout << "<<error>> write_stroke_action 2" << std::endl;
 
     StrokeActionRef sa1(b,0);
@@ -39,6 +41,20 @@ void action_test() {
     else {
         std::cout << std::string(ma.message().m_front,ma.message().m_end) << std::endl;
     }
+
+    ActionBuffer b2;
+
+    auto ar = b.all();
+    b2.copy_action(ar);
+
+    auto ar2 = b2.all();
+
+    std::cout << ar2.count() << std::endl;
+
+    StrokeActionRef sa21(b2,0);
+    if (!sa21.valid()) std::cout << "<<error>> StrokeActionRef 2,1" << std::endl;
+    else
+        std::cout << sa21.pressure() << std::endl;
 
     std::cout << "[ACTION-TEST] end" << std::endl;
 }
@@ -80,6 +96,11 @@ int main(int argc, char* argv[])
     }
 
     action_test();
+
+    std::cout << get_type_name<int>()<< std::endl;
+    std::cout << get_type_name<int32_t>() << std::endl;
+    std::cout << get_type_name<miro::ActionType>() << std::endl;
+    //std::cout << get_type_name<miro::ActionType::User>() << std::endl;
 
     std::cout << "<end>" << std::endl;
     return return_code;

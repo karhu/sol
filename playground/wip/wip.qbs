@@ -52,6 +52,7 @@ CppApplication {
         "render_context.cpp",
         "render_context.hpp",
         "result.hpp",
+        "sol/meta/type_name.hpp",
         "util.hpp",
         "vec2.hpp",
         "window.cpp",

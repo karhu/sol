@@ -55,6 +55,7 @@ public:
             [this, cb](const asio::error_code& ec, std::size_t transferred){
                 UNUSED(transferred);
                 m_sending = false;
+                //std::cout << "<socket> sent " << transferred << std::endl;
                 cb(ec);
         });
         return true;
@@ -71,6 +72,7 @@ public:
             [this, cb](const asio::error_code& ec, std::size_t transferred){
                 UNUSED(transferred);
                 m_sending = false;
+                //std::cout << "<socket> sent " << transferred << std::endl;
                 cb(ec);
         });
         return true;
@@ -87,6 +89,7 @@ public:
             [this, cb](const asio::error_code& ec, std::size_t transferred) {
                 UNUSED(transferred);
                 m_receiving = false;
+                //std::cout << "<socket> recv " << transferred << std::endl;
                 cb(ec);
         });
         return true;
@@ -103,6 +106,7 @@ public:
             [this, cb](const asio::error_code& ec, std::size_t transferred) {
                 UNUSED(transferred);
                 m_receiving = false;
+                //std::cout << "<socket> recv " << transferred << std::endl;
                 cb(ec);
         });
         return true;

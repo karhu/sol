@@ -12,9 +12,11 @@
 
 #include <iostream>
 
+#include "delegate.hpp"
+
 namespace miro {
 
-    namespace v3 {
+    namespace actions {
 
         enum class ActionType : uint8_t{
             Unknown = 0,
@@ -47,6 +49,14 @@ namespace miro {
                     m_size -= amount;
                 }
             }
+        };
+
+        struct HeaderMeta {
+            HeaderMeta() {}
+            HeaderMeta(uint16_t timestamp, uint8_t user = 0) : timestamp(timestamp), user(user) {}
+
+            uint8_t user = 0;
+            uint16_t timestamp = 0;
         };
 
         struct HeaderData {
@@ -140,6 +150,51 @@ namespace miro {
             void* m_memory_front = nullptr;
         };
 
+        struct ActionRef {
+            const ActionHeader& header() const;
+
+            template<typename AT>
+            AT data() {
+                return AT(*m_buffer,m_index);
+            }
+
+            MemoryRange data_memory();
+        public:
+            ActionRef(ActionBuffer& buffer, uint16_t index)
+                : m_buffer(&buffer)
+                , m_index(index)
+            {}
+
+        private:
+            ActionBuffer* m_buffer = nullptr;
+            uint16_t m_index = 0;
+        };
+
+        struct ActionRange
+        {
+        public:
+            uint16_t count() const { return m_end - m_begin; }
+
+            ActionRef get(uint16_t idx) {
+                // TODO index assert
+                return ActionRef(*m_buffer,idx);
+            }
+        public:
+            ActionBuffer& buffer() { return *m_buffer; }
+            uint16_t begin_index() { return m_begin; }
+            uint16_t end_index() { return m_end; }
+        public:
+            ActionRange(ActionBuffer& buffer, uint16_t begin, uint16_t end)
+                : m_buffer(&buffer)
+                , m_begin(begin)
+                , m_end(end)
+            {}
+        private:
+            ActionBuffer* m_buffer = nullptr;
+            uint16_t m_begin = 0;
+            uint16_t m_end = 0;
+        };
+
         class ActionBuffer {
         public:
             std::vector<ActionHeader> m_headers;
@@ -147,6 +202,18 @@ namespace miro {
             uint16_t m_front = 0;
 
             uint16_t available() const { return DATA_SIZE - m_front; }
+            uint16_t count() const { return m_headers.size(); }
+            uint16_t size_headers() const { return m_headers.size() * sizeof(ActionHeader); }
+            uint16_t size_data() const { return m_front; }
+
+            uint8_t const* ptr_data() const { return &m_data[0]; }
+            ActionHeader const * ptr_headers() const { return &m_headers[0]; }
+
+            void reset() {
+                m_front = 0;
+                m_data.resize(DATA_SIZE);
+                m_headers.clear();
+            }
 
             static constexpr uint16_t DATA_SIZE = 65535u; // uint16::max
         public:
@@ -201,6 +268,31 @@ namespace miro {
             {
                 return MemoryRange(m_data.data()+range.m_offset,range.m_size);
             }
+
+            bool copy_action(ActionBuffer source, uint16_t source_idx)
+            {
+                auto& h = source.m_headers[source_idx];
+                auto mr = source.get_memory(h.memory);
+                auto size = mr.size();
+                if (available() < size) return false;
+
+                void* dest_begin = &m_data[m_front];
+                std::memcpy(dest_begin,mr.begin(),size);
+                m_front += mr.size();
+                m_headers.push_back(h);
+                return true;
+            }
+
+            ActionRange copy_action(ActionRange& range) {
+                for (uint16_t i = 0; i<range.count(); i++) {
+                    uint16_t idx = range.begin_index() + i;
+                    if (!copy_action(range.buffer(),idx)) {
+                        return ActionRange(range.buffer(), idx, range.end_index());
+                    }
+                }
+                return ActionRange(range.buffer(),0,0);
+            }
+
         public:
             inline ActionType read_action_type(uint16_t action_offset)
             {
@@ -208,6 +300,10 @@ namespace miro {
                     return ActionType::Unknown;
                 else
                     return m_headers[action_offset].meta.type;
+            }
+
+            inline ActionRange all() {
+                return ActionRange(*this,0,m_headers.size());
             }
         };
 
@@ -325,7 +421,7 @@ namespace miro {
 
         // bool ok = finish_action<StrokeAction>(w,header_data);
 
-        inline bool write_stroke_action(ActionBuffer& b, HeaderData hd,
+        inline bool write_stroke_action(ActionBuffer& b, HeaderMeta hm,
                 vec2f position,
                 float pressure,
                 uint8_t button,
@@ -345,7 +441,7 @@ namespace miro {
             data->type = type;
 
             // write the header
-            b.end_action<StrokeActionData>(w,hd.timestamp,hd.user);
+            b.end_action<StrokeActionData>(w,hm.timestamp,hm.user);
 
             return true;
         }
@@ -360,7 +456,7 @@ namespace miro {
             uint16_t  message_id;
         };
 
-        inline bool write_message_action(ActionBuffer& b, HeaderData hd,
+        inline bool write_message_action(ActionBuffer& b, HeaderMeta hm,
             const std::string& message,
             uint16_t message_id)
         {
@@ -377,7 +473,7 @@ namespace miro {
             if (!data->message.write(w, message)) return false;
 
             // write the header
-            b.end_action<MessageActionData>(w,hd.timestamp,hd.user);
+            b.end_action<MessageActionData>(w,hm.timestamp,hm.user);
 
             return true;
         }
@@ -520,6 +616,7 @@ namespace miro {
     {
     protected:
         void send(const Action& action);
+        void send(actions::ActionRange action_range);
     protected:
         virtual bool on_connect(IActionSink& sink);
         virtual bool on_disconnect(IActionSink& sink);
@@ -540,8 +637,10 @@ namespace miro {
         virtual bool on_connect(IActionSource& source);
         virtual bool on_disconnect(IActionSource& source);
         virtual void on_receive(Action action);
+        virtual void on_receive(actions::ActionRange action_range);
     private:
         void receive(Action action);
+        void receive(actions::ActionRange action_range);
     private:
         bool add_source(IActionSource& sink);
         bool remove_source(IActionSource& sink);
@@ -561,28 +660,94 @@ namespace miro {
 
     class ActionSender : public IActionSource {
     public:
-        void send(const Action &action) { IActionSource::send(action); }
+        void send(actions::ActionRange action_range) { IActionSource::send(action_range); }
     };
 
     class BufferingActionSink : public IActionSink {
     public:
-        uint32_t count() const;
-        Action peak_front() const;
-        Action pop_front();
+        BufferingActionSink();
+    public:
+        template<typename CB>
+        void handle_actions(CB&& cb); // CB: (actions::ActionRange) -> bool
+
+        uint32_t count() const { return m_count; }
     protected:
-        virtual void on_receive(Action action) override;
-    private:
-        std::deque<Action> m_buffer;
+        virtual void on_receive(actions::ActionRange range) override;
+    protected:
+        void end_current_write_buffer();
+    protected:
+        std::unique_ptr<actions::ActionBuffer> m_current_buffer;
+        std::deque<std::unique_ptr<actions::ActionBuffer>> m_full_buffers;
+        std::vector<std::unique_ptr<actions::ActionBuffer>> m_available_buffers;
+        uint32_t m_count = 0;
     };
 
-    class ConcurrentActionForwarder : public IActionSink, public IActionSource {
+    template<typename CB>
+    void BufferingActionSink::handle_actions(CB &&cb)
+    {
+        end_current_write_buffer();
+
+        // handle the ranges
+        while (!m_full_buffers.empty()) {
+            auto buffer = std::move(m_full_buffers.front());
+            m_full_buffers.pop_front();
+            auto range = buffer->all();
+            m_count -= range.count();
+            bool cont = cb(range);
+            buffer->reset();
+            m_available_buffers.push_back(std::move(buffer));
+            if (!cont) break;
+        }
+    }
+
+    class ConcurrentBufferingActionSink : public BufferingActionSink {
     public:
-        uint32_t poll(); // to be called from the thread that manages connected sinks
+        template<typename CB>
+        void handle_actions(CB&& cb); // CB: (actions::ActionRange) -> bool
+    public:
+        void set_notify_callback(sol::delegate<void()> cb);
     protected:
-        virtual void on_receive(Action action) override;
-    private:
-        std::deque<Action> m_buffer;
+        virtual void on_receive(actions::ActionRange range) override;
+    protected:
         std::mutex m_mutex;
+        sol::delegate<void()>  m_notify_cb = nullptr;
+    };
+
+    template<typename CB>
+    void ConcurrentBufferingActionSink::handle_actions(CB &&cb)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        BufferingActionSink::handle_actions(cb);
+    }
+
+
+    class ConcurrentActionForwarder
+            : public ConcurrentBufferingActionSink
+            , public IActionSource
+    {
+    public:
+        void poll(); // to be called from the thread that manages connected sinks
+    };
+
+    class ActionWriter : public IActionSource {
+        actions::ActionBuffer m_buffer;
+        uint16_t m_sent_front = 0;
+    public:
+        actions::ActionBuffer& buffer() { return m_buffer; }
+    public:
+        uint16_t count_sent() const { return m_sent_front; }
+        uint16_t count_written() const { return m_buffer.count(); }
+        uint16_t count_ready() const { return count_written() - count_sent(); }
+
+        void reset() {
+            m_buffer.reset();
+            m_sent_front = 0;
+        }
+
+        void send_and_reset() {
+            send(actions::ActionRange(m_buffer,count_sent(),count_written()));
+            reset();
+        }
     };
 
 }

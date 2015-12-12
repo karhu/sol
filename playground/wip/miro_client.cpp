@@ -11,7 +11,7 @@ namespace miro
 
 ClientSession::ClientSession()
 {
-    m_client_session.reset(new ClientConnection(m_scheduler, m_send_buffer));
+    m_client_connection.reset(new ClientConnection(m_scheduler, m_send_buffer));
     m_send_buffer.set_notify_callback(sol::make_delegate(this,notify_send));
 }
 
@@ -26,7 +26,7 @@ ClientSession::~ClientSession()
 
 bool ClientSession::connect(const char *host, const char *port)
 {
-    return m_client_session->connect(host,port);
+    return m_client_connection->connect(host,port);
 }
 
 void ClientSession::start_thread()
@@ -44,19 +44,19 @@ IActionSink &ClientSession::send_pipe()
 
 IActionSource &ClientSession::receive_pipe()
 {
-    return *m_client_session;
+    return *m_client_connection;
 }
 
 void ClientSession::notify_send()
 {
     m_scheduler.asio().post([this](){
-        m_client_session->notify_send_data_available();
+        m_client_connection->notify_send_data_available();
     });
 }
 
 // -- ClientSession ------------------ //
 
-ClientConnection::ClientConnection(Scheduler &scheduler, ConcurrentActionBuffer& send_data)
+ClientConnection::ClientConnection(Scheduler &scheduler, ConcurrentBufferingActionSink &send_data)
     : Connection(scheduler)
     , m_send_data(send_data)
 {
@@ -87,30 +87,44 @@ bool ClientConnection::check_error(networking::error_ref e)
 
 void ClientConnection::handle_incomming()
 {
-    socket().receive(&m_receive_header,sizeof(MessageHeader),[this](error_ref e){
-        //std::cout << "<C><waiting to receive header>"<< std::endl;
+    socket().receive(buffer(m_receive_header),[this](error_ref e){
         if (check_error(e)) {
             //std::cout << "<C>< header received " << m_receive_header.len/sizeof(Action) << ", " <<(int) m_receive_header.flag << " >" << std::endl;
             if (m_receive_header.flag == MessageHeader::Flag::action) {
-                auto action_count = m_receive_header.len / sizeof(Action);
-                // TODO assert that len is a multiple of sizeof(Action)
-                receive_actions(action_count);
+                receive_action_headers();
+            } else {
+                std::cout << "warning: unsupported MessageHeader" << std::endl;
             }
         }
     });
 }
 
-void ClientConnection::receive_actions(uint32_t action_count)
+void ClientConnection::receive_action_headers()
 {
-    m_receive_buffer.resize(action_count);
+    uint16_t len_header = m_receive_header.len1;
+    auto header_count = len_header / sizeof(actions::ActionHeader);
+    len_header = header_count * sizeof(actions::ActionHeader);
+    // TODO make sure no rounding happens
+
+    m_receive_buffer.m_headers.resize(header_count);
     //std::cout << "<C><waiting to receive actions>"<< std::endl;
-    socket().receive(m_receive_buffer.data(),action_count*sizeof(Action),[this](error_ref e){
+    socket().receive(m_receive_buffer.m_headers.data(),len_header,[=](error_ref e){
         if (check_error(e)) {
-            std::cout << "<C>< received " << m_receive_buffer.size() << " actions>" << std::endl;
-            for (auto& a : m_receive_buffer) {
-                //IActionSource::send()
-                send(a);
-            }
+            // std::cout << "<C>< received " << len_header / sizeof(actions::ActionHeader) << " action headers>" << std::endl;
+            receive_action_data();
+        }
+    });
+}
+
+void ClientConnection::receive_action_data()
+{
+    uint16_t len_data = m_receive_header.len2;
+    m_receive_buffer.m_front = len_data;
+    socket().receive(m_receive_buffer.m_data.data(),len_data,[=](error_ref e){
+        if (check_error(e)) {
+            // std::cout << "<C>< received " << len_data << "bytes of action data>" << std::endl;
+            send(m_receive_buffer.all());
+            m_receive_buffer.reset();
             handle_incomming();
         }
     });
@@ -118,25 +132,43 @@ void ClientConnection::receive_actions(uint32_t action_count)
 
 void ClientConnection::handle_outgoing()
 {
-    uint32_t available = m_send_data.count();
-    if (available) {
-        m_send_active = true;
-        send_action_header();
-    } else {
+    // copy data over
+    m_send_buffer.reset();
+    m_send_data.handle_actions([this](actions::ActionRange range) {
+       m_send_buffer.copy_action(range);
+       return false;
+    });
+
+    // check we have data
+    if (m_send_buffer.count() == 0) {
         m_send_active = false;
+        return;
     }
+
+    // init sending
+    m_send_active = true;
+    send_action_message();
 }
 
-void ClientConnection::send_action_header()
+void ClientConnection::send_action_message()
 {
-    m_send_data.get(m_send_data.count(),m_send_buffer);
     m_send_header = MessageHeader();
-    m_send_header.flag = MessageHeader::Flag::action;
-    m_send_header.len = m_send_buffer.size()*sizeof(Action);
-    //std::cout << "<C><waiting to send header>"<< std::endl;
-    socket().send(&m_send_header,sizeof(MessageHeader),[this](error_ref e) {
+    m_send_header.flag = miro::MessageHeader::Flag::action;
+    m_send_header.len1 = m_send_buffer.size_headers();
+    m_send_header.len2 = m_send_buffer.size_data();
+
+    socket().send(buffer(m_send_header),[this](error_ref e) {
         if (check_error(e)) {
-            //std::cout << "<S><header sent " << m_send_header.len/sizeof(Action) << ", " <<(int) m_send_header.flag << " >" << std::endl;
+            send_action_headers();
+        }
+    });
+}
+
+void ClientConnection::send_action_headers()
+{
+    socket().send((void*)m_send_buffer.ptr_headers(),m_send_buffer.size_headers(),[this](error_ref e) {
+        if (check_error(e)) {
+            // std::cout << "<C><sent " << m_send_buffer.size_headers() / sizeof(actions::ActionHeader) << " action headers>" << std::endl;
             send_action_data();
         }
     });
@@ -144,10 +176,9 @@ void ClientConnection::send_action_header()
 
 void ClientConnection::send_action_data()
 {
-    //std::cout << "<C><waiting to send actions>"<< std::endl;
-    socket().send(m_send_buffer.data(),m_send_buffer.size()*sizeof(Action),[this](error_ref e) {
+    socket().send((void*)m_send_buffer.ptr_data(),m_send_buffer.size_data(),[this](error_ref e) {
         if (check_error(e)) {
-            std::cout << "<C><sent " << m_send_buffer.size() << " actions>" << std::endl;
+            // std::cout << "<C><sent " << m_send_buffer.size_data() << " bytes of action data>" << std::endl;
             handle_outgoing();
         }
     });
@@ -184,86 +215,6 @@ void ConcurrentActionBuffer::on_receive(Action action)
        m_buffer.push_back(action);
    }
     if (m_notify_cb) m_notify_cb();
-}
-
-// -- ActionEchoSession ------------ //
-
-ActionEchoSession::ActionEchoSession(Socket &&connection)
-    : networking::Connection(std::move(connection))
-{
-    set_connection_handler(sol::make_delegate(this,connection_handler));
-}
-
-void ActionEchoSession::connection_handler(error_ref e)
-{
-    if (check_error(e)) {
-        receive_action_header();
-    }
-}
-
-bool ActionEchoSession::check_error(error_ref e)
-{
-    if (e) {
-        std::cout << "ActionEchoSession::error: " << e.message() << std::endl;
-        return false;
-    }
-    return true;
-}
-
-void ActionEchoSession::receive_action_header()
-{
-    //std::cout << "<S><waiting to receive header>"<< std::endl;
-    socket().receive(&m_receive_header,sizeof(MessageHeader),[this](error_ref e){
-        if (check_error(e)) {
-            //std::cout << "<C>< header received " << m_receive_header.len/sizeof(Action) << ", " <<(int) m_receive_header.flag << " >" << std::endl;
-            if (m_receive_header.flag == MessageHeader::Flag::action) {
-                auto action_count = m_receive_header.len / sizeof(Action);
-                // TODO assert that len is a multiple of sizeof(Action)
-                receive_actions(action_count);
-            }
-        }
-    });
-}
-
-void ActionEchoSession::receive_actions(uint32_t action_count)
-{
-    m_receive_buffer.resize(action_count);
-    //std::cout << "<S><waiting to receive actions>"<< std::endl;
-    socket().receive(m_receive_buffer.data(),action_count*sizeof(Action),[this](error_ref e){
-        if (check_error(e)) {
-            std::cout << "<S><received " << m_receive_buffer.size() << " actions>" << std::endl;
-
-            for (auto& a : m_receive_buffer) {
-                a.data.stroke.position = a.data.stroke.position + vec2f{0.1f,0.1f};
-            }
-
-            send_action_header();
-        }
-    });
-}
-
-void ActionEchoSession::send_action_header()
-{
-    //std::cout << "<S><waiting to send header>" << std::endl;
-    socket().send(&m_receive_header,sizeof(MessageHeader),[this](error_ref e) {
-        if (check_error(e)) {
-            //std::cout << "<S><header sent " << m_receive_header.len/sizeof(Action) << ", " <<(int) m_receive_header.flag << " >" << std::endl;
-            send_action_data();
-        }
-    });
-}
-
-void ActionEchoSession::send_action_data()
-{
-    //std::cout << "<S><waiting to send actions>" << std::endl;
-    socket().send(m_receive_buffer.data(),
-                      m_receive_buffer.size()*sizeof(Action),
-                      [this](error_ref e){
-        if (check_error(e)) {
-            std::cout << "<S><sent " << m_receive_buffer.size() << " actions>" << std::endl;
-            receive_action_header();
-        }
-    });
 }
 
 }
