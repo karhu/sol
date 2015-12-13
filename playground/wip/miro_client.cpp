@@ -37,12 +37,12 @@ void ClientSession::start_thread()
     });
 }
 
-IActionSink &ClientSession::send_pipe()
+action::IActionSink &ClientSession::send_pipe()
 {
     return m_send_buffer;
 }
 
-IActionSource &ClientSession::receive_pipe()
+action::IActionSource &ClientSession::receive_pipe()
 {
     return *m_client_connection;
 }
@@ -56,7 +56,7 @@ void ClientSession::notify_send()
 
 // -- ClientSession ------------------ //
 
-ClientConnection::ClientConnection(Scheduler &scheduler, ConcurrentBufferingActionSink &send_data)
+ClientConnection::ClientConnection(Scheduler &scheduler, action::ConcurrentBufferingActionSink &send_data)
     : Connection(scheduler)
     , m_send_data(send_data)
 {
@@ -102,8 +102,8 @@ void ClientConnection::handle_incomming()
 void ClientConnection::receive_action_headers()
 {
     uint16_t len_header = m_receive_header.len1;
-    auto header_count = len_header / sizeof(actions::ActionHeader);
-    len_header = header_count * sizeof(actions::ActionHeader);
+    auto header_count = len_header / sizeof(action::ActionHeader);
+    len_header = header_count * sizeof(action::ActionHeader);
     // TODO make sure no rounding happens
 
     m_receive_buffer.m_headers.resize(header_count);
@@ -134,7 +134,7 @@ void ClientConnection::handle_outgoing()
 {
     // copy data over
     m_send_buffer.reset();
-    m_send_data.handle_actions([this](actions::ActionRange range) {
+    m_send_data.handle_actions([this](action::ActionRange range) {
        m_send_buffer.copy_action(range);
        return false;
     });
@@ -168,7 +168,7 @@ void ClientConnection::send_action_headers()
 {
     socket().send((void*)m_send_buffer.ptr_headers(),m_send_buffer.size_headers(),[this](error_ref e) {
         if (check_error(e)) {
-            // std::cout << "<C><sent " << m_send_buffer.size_headers() / sizeof(actions::ActionHeader) << " action headers>" << std::endl;
+            std::cout << "<C><sent " << m_send_buffer.size_headers() / sizeof(action::ActionHeader) << " action headers>" << std::endl;
             send_action_data();
         }
     });
@@ -182,39 +182,6 @@ void ClientConnection::send_action_data()
             handle_outgoing();
         }
     });
-}
-
-// -- ActionBuffer ---------- //
-
-uint32_t ConcurrentActionBuffer::count()
-{
-    return m_buffer.size();
-}
-
-void ConcurrentActionBuffer::get(uint32_t count_, std::vector<Action> &output)
-{
-   std::lock_guard<std::mutex> lock(m_mutex);
-
-   count_ = std::min(count_,count());
-   output.clear();
-   for (uint32_t i=0; i<count_; i++) {
-       output.push_back(m_buffer.front());
-       m_buffer.pop_front();
-   }
-}
-
-void ConcurrentActionBuffer::set_notify_callback(sol::delegate<void ()> cb)
-{
-    m_notify_cb = cb;
-}
-
-void ConcurrentActionBuffer::on_receive(Action action)
-{
-   {
-       std::lock_guard<std::mutex> lock(m_mutex);
-       m_buffer.push_back(action);
-   }
-    if (m_notify_cb) m_notify_cb();
 }
 
 }

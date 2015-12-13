@@ -9,12 +9,14 @@
 #include "networking/Socket.hpp"
 #include "networking/Connection.hpp"
 
-#include "Action.hpp"
 #include "common.hpp"
 #include "delegate.hpp"
 
 #include <mutex>
 #include <thread>
+
+#include "miro/action/IActionSource.hpp"
+#include "miro/action/ConcurrentBufferingActionSink.hpp"
 
 namespace miro {
 
@@ -31,24 +33,9 @@ struct MessageHeader {
     uint16_t len2 = 0;
 };
 
-class ConcurrentActionBuffer : public IActionSink {
+class ClientConnection : public networking::Connection, public action::IActionSource {
 public:
-    uint32_t count();
-
-    void get(uint32_t count, std::vector<Action>& output);
-public:
-    void set_notify_callback(sol::delegate<void()> cb);
-protected:
-    virtual void on_receive(Action action) override;
-private:
-    std::deque<Action> m_buffer;
-    std::mutex m_mutex;
-    sol::delegate<void()>  m_notify_cb = nullptr;
-};
-
-class ClientConnection : public networking::Connection, public IActionSource {
-public:
-    ClientConnection(networking::Scheduler& scheduler, ConcurrentBufferingActionSink& send_data);
+    ClientConnection(networking::Scheduler& scheduler, action::ConcurrentBufferingActionSink& send_data);
 public:
     void notify_send_data_available();
 private:
@@ -66,10 +53,10 @@ private:
 private:
     MessageHeader m_receive_header, m_send_header;
 
-    actions::ActionBuffer m_receive_buffer;
-    actions::ActionBuffer m_send_buffer;
+    action::ActionBuffer m_receive_buffer;
+    action::ActionBuffer m_send_buffer;
 
-    ConcurrentBufferingActionSink& m_send_data;
+    action::ConcurrentBufferingActionSink& m_send_data;
     bool m_send_active = false;
 };
 
@@ -81,13 +68,13 @@ public:
     void start_thread();
     bool connect(const char* host, const char* port);
 public:
-    IActionSink& send_pipe();
-    IActionSource& receive_pipe();
+    action::IActionSink& send_pipe();
+    action::IActionSource& receive_pipe();
 private:
     void notify_send();
 private:
     networking::Scheduler m_scheduler;
-    ConcurrentBufferingActionSink m_send_buffer;
+    action::ConcurrentBufferingActionSink m_send_buffer;
     std::unique_ptr<ClientConnection> m_client_connection;
     std::thread m_thread;
 };

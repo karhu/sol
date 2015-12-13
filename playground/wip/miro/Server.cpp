@@ -2,8 +2,9 @@
 
 #include <iostream>
 
-using namespace networking;
+#include "miro/action/connect.hpp"
 
+using namespace networking;
 
 namespace miro {
 
@@ -50,7 +51,7 @@ ServerConnection::ServerConnection(ServerSession& session, Socket &&socket)
     set_connection_handler(sol::make_delegate(this,connection_handler));
     m_send_pipe.set_notify_callback(sol::make_delegate(this,notify_send));
 
-    miro::connect(receive_pipe(),send_pipe()); //TODO remove
+    miro::action::connect(receive_pipe(),send_pipe()); //TODO remove
 }
 
 void ServerConnection::connection_handler(error_ref e)
@@ -88,8 +89,8 @@ void ServerConnection::handle_incomming()
 
 void ServerConnection::receive_action_headers(uint16_t len_headers, uint16_t len_data)
 {
-    auto header_count = len_headers / sizeof(actions::ActionHeader);
-    len_headers = header_count * sizeof(actions::ActionHeader);
+    auto header_count = len_headers / sizeof(action::ActionHeader);
+    len_headers = header_count * sizeof(action::ActionHeader);
     // TODO make sure no rounding happens
 
     m_buffer_receive.m_headers.resize(header_count);
@@ -134,7 +135,7 @@ void ServerConnection::send_action_headers()
 {
     socket().send((void*)m_buffer_send.ptr_headers(),m_buffer_send.size_headers(),[this](error_ref e) {
         if (check_error(e)) {
-            // std::cout << "<C><sent " << m_buffer_send.size_headers() / sizeof(actions::ActionHeader) << " action headers>" << std::endl;
+            std::cout << "<S><sent " << m_buffer_send.size_headers() / sizeof(action::ActionHeader) << " action headers>" << std::endl;
             send_action_data();
         }
     });
@@ -144,7 +145,7 @@ void ServerConnection::send_action_data()
 {
     socket().send((void*)m_buffer_send.ptr_data(),m_buffer_send.size_data(),[this](error_ref e) {
         if (check_error(e)) {
-            // std::cout << "<C><sent " << m_buffer_send.size_data() << " bytes of action data>" << std::endl;
+            // std::cout << "<S><sent " << m_buffer_send.size_data() << " bytes of action data>" << std::endl;
             handle_outgoing();
         }
     });
@@ -153,7 +154,7 @@ void ServerConnection::send_action_data()
 void ServerConnection::handle_outgoing()
 {
     m_buffer_send.reset();
-    m_send_pipe.handle_actions([this](actions::ActionRange range) {
+    m_send_pipe.handle_actions([this](action::ActionRange range) {
        m_buffer_send.copy_action(range);
        return false;
     });
@@ -168,19 +169,6 @@ void ServerConnection::handle_outgoing()
 void ServerConnection::notify_send()
 {
     if (!m_send_active) handle_outgoing();
-}
-
-// NotifyingActionBuffer /////////////////////////////////
-
-void NotifyingActionBuffer::set_notify_callback(sol::delegate<void ()> cb)
-{
-    m_notify_cb = cb;
-}
-
-void NotifyingActionBuffer::on_receive(actions::ActionRange range)
-{
-    BufferingActionSink::on_receive(range);
-    if (m_notify_cb) m_notify_cb();
 }
 
 

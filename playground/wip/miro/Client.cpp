@@ -16,6 +16,8 @@
 #include "../memory.hpp"
 #include "../memory/Mallocator.hpp"
 
+#include "miro/action/ConcurrentActionForwarder.hpp"
+
 namespace miro {
 
 class MainWindow : public sol::EventHandler {
@@ -50,7 +52,7 @@ int32_t miro::Client::run()
 
     connect(main_window.m_canvas_view.get_action_source(),session.send_pipe());
 
-    miro::ConcurrentActionForwarder incomming_buffer;
+    action::ConcurrentActionForwarder incomming_buffer;
     connect(session.receive_pipe(),incomming_buffer);
     connect(incomming_buffer,canvas.sink_confirmed());
 

@@ -8,15 +8,16 @@
 #include "nanovg.h"
 #include "nanovg_gl_utils.h"
 
-
 #include "Transform2.hpp"
 
+#include "miro/action/BufferingActionSink.hpp"
+#include "miro/action/ActionDefinitions.hpp"
+
 using T2 = Transform2;
-static float rot = 0.0f;
 
 namespace miro {
 
-class SinkConfirmed : public BufferingActionSink
+class SinkConfirmed : public action::BufferingActionSink
 {
 public:
     SinkConfirmed(Canvas& c) : m_canvas(c) {}
@@ -25,13 +26,14 @@ private:
     Canvas& m_canvas;
 };
 
-class SinkUnconfirmed : public BufferingActionSink
+class SinkUnconfirmed : public action::BufferingActionSink
 {
 public:
     SinkUnconfirmed(Canvas& c) : m_canvas(c) {}
     ~SinkUnconfirmed() {}
 protected:
-    virtual void on_receive(actions::ActionRange action_range) override
+#if 0
+    virtual void on_receive(action::ActionRange action_range) override
     {
         auto vg = m_canvas.m_render_context.impl();
         m_canvas.m_render_context.begin_frame(m_canvas.m_render_target);
@@ -44,9 +46,9 @@ protected:
         for (uint16_t i=0; i < action_range.count(); i++) {
             auto ar = action_range.get(i);
             switch (ar.header().meta.type) {
-                case miro::actions::ActionType::Stroke:
+                case miro::action::ActionType::Stroke:
                 {
-                    auto a = ar.data<actions::StrokeActionRef>();
+                    auto a = ar.data<action::StrokeActionRef>();
                     auto p = a.position();
                     p = transform_point(p,m_canvas.m_transform_winr_canvasa);
 
@@ -62,6 +64,7 @@ protected:
 
         m_canvas.m_render_context.end_frame();
     }
+#endif
 
 private:
     Canvas& m_canvas;
@@ -70,8 +73,8 @@ private:
 Canvas::Canvas(sol::RenderContext& rctx, uint32_t width, uint32_t height)
     : m_render_context(rctx)
 {
-    m_sink_confirmed.reset(new SinkUnconfirmed(*this)); // TODO change this later
-    m_sink_unconfirmed.reset(new BufferingActionSink());
+    m_sink_confirmed.reset(new action::BufferingActionSink()); // TODO change this later
+    m_sink_unconfirmed.reset(new action::BufferingActionSink());
     m_render_target = m_render_context.create_render_target(width,height);
 
     m_render_context.begin_frame(m_render_target);
@@ -81,12 +84,12 @@ Canvas::Canvas(sol::RenderContext& rctx, uint32_t width, uint32_t height)
     m_render_context.end_frame();
 }
 
-IActionSink &Canvas::sink_unconfirmed()
+action::IActionSink &Canvas::sink_unconfirmed()
 {
     return *m_sink_unconfirmed;
 }
 
-IActionSink &Canvas::sink_confirmed()
+action::IActionSink &Canvas::sink_confirmed()
 {
     return *m_sink_confirmed;
 }
@@ -112,8 +115,67 @@ void Canvas::update(sol::Context& ctx)
     const T2 t_winr_canvasa = T2::Scale(win_dim) * t_wina_canvasr * T2::Scale(fb_dim);
 
     m_transform_winr_canvasa = t_winr_canvasa;
+
+    m_render_context.begin_frame(m_render_target);
+    m_render_context.bind(m_render_target);
+    nvgResetTransform(vg);
+    nvgReset(vg);
+
+    // render unconfirmed
+    nvgFillColor(vg, nvgRGBA(255,0,0,64));
+    m_sink_unconfirmed->handle_actions([this,vg](action::ActionRange range){
+        for (uint16_t i=0; i < range.count(); i++) {
+            auto ar = range.get(i);
+            switch (ar.header().meta.type) {
+                case miro::action::ActionType::Stroke:
+                {
+                    auto a = ar.data<action::StrokeActionRef>();
+                    auto p = a.position();
+                    p = transform_point(p,m_transform_winr_canvasa);
+
+                    nvgBeginPath(vg);
+                    nvgCircle(vg, p.x, p.y, 3);
+                    nvgFill(vg);
+                    break;
+                }
+                default:
+                    std::cout << "unhandled action type" << std::endl;
+            }
+        }
+        return true;
+    });
+
+    // render confirmed
+    nvgFillColor(vg, nvgRGBA(0,0,255,64));
+    m_sink_confirmed->handle_actions([this,vg](action::ActionRange range){
+        for (uint16_t i=0; i < range.count(); i++) {
+            auto ar = range.get(i);
+            switch (ar.header().meta.type) {
+                case miro::action::ActionType::Stroke:
+                {
+                    auto a = ar.data<action::StrokeActionRef>();
+                    auto p = a.position();
+                    p = transform_point(p,m_transform_winr_canvasa);
+
+                    nvgBeginPath(vg);
+                    nvgCircle(vg, p.x, p.y, 3);
+                    nvgFill(vg);
+                    break;
+                }
+                default:
+                    std::cout << "unhandled action type" << std::endl;
+            }
+        }
+        return true;
+    });
+
+    m_render_context.end_frame();
+
+
     return; // TODO
 
+
+    /*
     m_render_context.begin_frame(m_render_target);
     m_render_context.bind(m_render_target);
 
@@ -121,7 +183,7 @@ void Canvas::update(sol::Context& ctx)
     nvgReset(vg);
     nvgFillColor(vg, nvgRGBA(255,0,0,128));
 
-    /*
+
     auto count = m_sink_unconfirmed->count();
     for (uint32_t i=0; i<count; i++)
     {
@@ -154,9 +216,10 @@ void Canvas::update(sol::Context& ctx)
             }
         }
     }
-    */
+
 
     m_render_context.end_frame();
+*/
 }
 
 void Canvas::render(sol::Context &ctx)
@@ -212,11 +275,6 @@ void Canvas::init_user_context(uint16_t id, const Canvas::UserContext &context)
 {
     if (id < m_user_contexts.size()) m_user_contexts.resize(id+1);
     m_user_contexts[id] = context;
-}
-
-void Canvas::_handle_unconfirmed(actions::ActionRange range)
-{
-
 }
 
 }

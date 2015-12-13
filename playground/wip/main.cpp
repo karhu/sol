@@ -9,13 +9,15 @@
 
 #include "sol/meta/type_name.hpp"
 
+#include "miro/action/ActionDefinitions.hpp"
+
 struct ClientArgs {
     std::string port = "54321";
     std::string host = "localhost";
 };
 
 void action_test() {
-    using namespace miro::actions;
+    using namespace miro::action;
 
     std::cout << "[ACTION-TEST] start" << std::endl;
 
@@ -39,7 +41,7 @@ void action_test() {
     MessageActionRef ma(b,1);
     if (!ma.valid()) std::cout << "<<error>> StrokeActionRef 2" << std::endl;
     else {
-        std::cout << std::string(ma.message().m_front,ma.message().m_end) << std::endl;
+        std::cout << std::string(ma.message().ptr(),ma.message().ptr()+ma.message().size()) << std::endl;
     }
 
     ActionBuffer b2;

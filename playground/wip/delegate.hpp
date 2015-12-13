@@ -1,5 +1,6 @@
 #pragma once
 
+#include <util.hpp>
 #include <FastDelegate.hpp>
 
 namespace sol
