@@ -5,8 +5,6 @@
 #include "miro/Server.hpp"
 #include "miro/Client.hpp"
 
-#include "Action.hpp"
-
 #include "sol/meta/type_name.hpp"
 
 #include "miro/action/ActionDefinitions.hpp"
@@ -101,7 +99,7 @@ int main(int argc, char* argv[])
 
     std::cout << get_type_name<int>()<< std::endl;
     std::cout << get_type_name<int32_t>() << std::endl;
-    std::cout << get_type_name<miro::ActionType>() << std::endl;
+    std::cout << get_type_name<miro::action::ActionType>() << std::endl;
     //std::cout << get_type_name<miro::ActionType::User>() << std::endl;
 
     std::cout << "<end>" << std::endl;

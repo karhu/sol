@@ -61,6 +61,8 @@ namespace miro { namespace action {
             m_front = 0;
             m_data.resize(DATA_SIZE);
             m_headers.clear();
+
+            for (auto& d : m_data) d = 0; // TODO remove
         }
 
         static constexpr uint16_t DATA_SIZE = 65535u; // uint16::max
@@ -117,29 +119,9 @@ namespace miro { namespace action {
             return sol::MemoryRange(m_data.data()+range.m_offset,range.m_size);
         }
 
-        bool copy_action(ActionBuffer source, uint16_t source_idx)
-        {
-            auto& h = source.m_headers[source_idx];
-            auto mr = source.get_memory(h.memory);
-            auto size = mr.size();
-            if (available() < size) return false;
+        bool copy_action(ActionBuffer source, uint16_t source_idx);
 
-            void* dest_begin = &m_data[m_front];
-            std::memcpy(dest_begin,mr.begin(),size);
-            m_front += mr.size();
-            m_headers.push_back(h);
-            return true;
-        }
-
-        ActionRange copy_action(ActionRange& range) {
-            for (uint16_t i = 0; i<range.count(); i++) {
-                uint16_t idx = range.begin_index() + i;
-                if (!copy_action(range.buffer(),idx)) {
-                    return ActionRange(range.buffer(), idx, range.end_index());
-                }
-            }
-            return ActionRange(range.buffer(),0,0);
-        }
+        ActionRange copy_action(ActionRange range);
 
     public:
         inline ActionType read_action_type(uint16_t action_offset)

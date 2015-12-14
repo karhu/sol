@@ -52,8 +52,6 @@ private:
     float m_scale = 1.0f;
 
     Transform2 m_transform_winr_canvasa; // transform from relative window coordinates to absolute canvas ones
-private:
-    friend class SinkUnconfirmed;
 };
 
 }

@@ -50,8 +50,6 @@ ServerConnection::ServerConnection(ServerSession& session, Socket &&socket)
 {
     set_connection_handler(sol::make_delegate(this,connection_handler));
     m_send_pipe.set_notify_callback(sol::make_delegate(this,notify_send));
-
-    miro::action::connect(receive_pipe(),send_pipe()); //TODO remove
 }
 
 void ServerConnection::connection_handler(error_ref e)
@@ -135,7 +133,7 @@ void ServerConnection::send_action_headers()
 {
     socket().send((void*)m_buffer_send.ptr_headers(),m_buffer_send.size_headers(),[this](error_ref e) {
         if (check_error(e)) {
-            std::cout << "<S><sent " << m_buffer_send.size_headers() / sizeof(action::ActionHeader) << " action headers>" << std::endl;
+            //std::cout << "<S><sent " << m_buffer_send.size_headers() / sizeof(action::ActionHeader) << " action headers>" << std::endl;
             send_action_data();
         }
     });
@@ -155,6 +153,7 @@ void ServerConnection::handle_outgoing()
 {
     m_buffer_send.reset();
     m_send_pipe.handle_actions([this](action::ActionRange range) {
+       if (range.count() == 0) return true; // get another one
        m_buffer_send.copy_action(range);
        return false;
     });

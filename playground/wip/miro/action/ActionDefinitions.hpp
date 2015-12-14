@@ -1,5 +1,7 @@
 #pragma once
 
+#include "vec2.hpp"
+
 #include "ActionReference.hpp"
 
 namespace miro { namespace action {

@@ -17,59 +17,6 @@ using T2 = Transform2;
 
 namespace miro {
 
-class SinkConfirmed : public action::BufferingActionSink
-{
-public:
-    SinkConfirmed(Canvas& c) : m_canvas(c) {}
-    ~SinkConfirmed() {}
-private:
-    Canvas& m_canvas;
-};
-
-class SinkUnconfirmed : public action::BufferingActionSink
-{
-public:
-    SinkUnconfirmed(Canvas& c) : m_canvas(c) {}
-    ~SinkUnconfirmed() {}
-protected:
-#if 0
-    virtual void on_receive(action::ActionRange action_range) override
-    {
-        auto vg = m_canvas.m_render_context.impl();
-        m_canvas.m_render_context.begin_frame(m_canvas.m_render_target);
-        m_canvas.m_render_context.bind(m_canvas.m_render_target);
-
-        nvgResetTransform(vg);
-        nvgReset(vg);
-        nvgFillColor(vg, nvgRGBA(255,0,0,128));
-
-        for (uint16_t i=0; i < action_range.count(); i++) {
-            auto ar = action_range.get(i);
-            switch (ar.header().meta.type) {
-                case miro::action::ActionType::Stroke:
-                {
-                    auto a = ar.data<action::StrokeActionRef>();
-                    auto p = a.position();
-                    p = transform_point(p,m_canvas.m_transform_winr_canvasa);
-
-                    nvgBeginPath(vg);
-                    nvgCircle(vg, p.x, p.y, 3);
-                    nvgFill(vg);
-                    break;
-                }
-                default:
-                    std::cout << "unhandled action type" << std::endl;
-            }
-        }
-
-        m_canvas.m_render_context.end_frame();
-    }
-#endif
-
-private:
-    Canvas& m_canvas;
-};
-
 Canvas::Canvas(sol::RenderContext& rctx, uint32_t width, uint32_t height)
     : m_render_context(rctx)
 {
@@ -171,55 +118,6 @@ void Canvas::update(sol::Context& ctx)
 
     m_render_context.end_frame();
 
-
-    return; // TODO
-
-
-    /*
-    m_render_context.begin_frame(m_render_target);
-    m_render_context.bind(m_render_target);
-
-    nvgResetTransform(vg);
-    nvgReset(vg);
-    nvgFillColor(vg, nvgRGBA(255,0,0,128));
-
-
-    auto count = m_sink_unconfirmed->count();
-    for (uint32_t i=0; i<count; i++)
-    {
-        auto a = m_sink_unconfirmed->pop_front();
-        auto p = a.data.stroke.position;
-        p = transform_point(p,t_winr_canvasa);
-
-        //nvgBeginPath(vg);
-        //nvgCircle(vg, p.x, p.y, 3);
-        //nvgFill(vg);
-    }
-
-    // handle confirmed events
-    // these might come from different users
-    count = m_sink_confirmed->count();
-    for (uint32_t i=0; i<count; i++)
-    {
-        auto a = m_sink_confirmed->pop_front();
-        switch (a.type) {
-            case ActionType::StrokeBegin:
-            case ActionType::StrokeEnd:
-            case ActionType::StrokeUpdate:
-            {
-                auto p = a.data.stroke.position;
-                p = transform_point(p,t_winr_canvasa);
-
-                //nvgBeginPath(vg);
-                //nvgCircle(vg, p.x, p.y, 3);
-                //nvgFill(vg);
-            }
-        }
-    }
-
-
-    m_render_context.end_frame();
-*/
 }
 
 void Canvas::render(sol::Context &ctx)

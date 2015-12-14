@@ -168,7 +168,7 @@ void ClientConnection::send_action_headers()
 {
     socket().send((void*)m_send_buffer.ptr_headers(),m_send_buffer.size_headers(),[this](error_ref e) {
         if (check_error(e)) {
-            std::cout << "<C><sent " << m_send_buffer.size_headers() / sizeof(action::ActionHeader) << " action headers>" << std::endl;
+            //std::cout << "<C><sent " << m_send_buffer.size_headers() / sizeof(action::ActionHeader) << " action headers>" << std::endl;
             send_action_data();
         }
     });

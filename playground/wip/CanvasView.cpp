@@ -17,10 +17,10 @@ CanvasView::~CanvasView()
 bool CanvasView::set_canvas(miro::Canvas &canvas)
 {
     if (m_canvas) {
-        miro::action::disconnect(this->m_writer, m_canvas->sink_unconfirmed());
+        miro::action::disconnect(get_action_source(), m_canvas->sink_unconfirmed());
     }
     m_canvas = &canvas;
-    miro::action::connect(this->m_writer, m_canvas->sink_unconfirmed());
+    miro::action::connect(get_action_source(), m_canvas->sink_unconfirmed());
 
     return true;
 }
@@ -42,7 +42,6 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
 
     if (!m_canvas) return;
 
-    // TODO transform position
     uint8_t type = 0;
 
     if (event.action == Action::Down) {
@@ -64,6 +63,7 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
                 1, type);
 
     if (!written) {
+        std::cout << "write error" << std::endl;
         // TODO error
     }
     m_writer.send_and_reset();

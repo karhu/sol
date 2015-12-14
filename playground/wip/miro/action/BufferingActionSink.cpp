@@ -19,6 +19,8 @@ namespace miro { namespace action {
 
     void BufferingActionSink::end_current_write_buffer()
     {
+        if (m_current_buffer->count() == 0) return;
+
         m_full_buffers.push_back(std::move(m_current_buffer));
         if (m_available_buffers.empty())
             m_current_buffer.reset(new ActionBuffer());
