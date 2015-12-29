@@ -9,11 +9,12 @@ namespace miro { namespace action {
 
     void ConcurrentBufferingActionSink::on_receive(ActionRange range)
     {
+        auto count = range.count();
         {
         std::lock_guard<std::mutex> lock(m_mutex);
         BufferingActionSink::on_receive(range);
         }
-        if (m_notify_cb) m_notify_cb();
+        if (count && m_notify_cb) m_notify_cb();
     }
 
 }}

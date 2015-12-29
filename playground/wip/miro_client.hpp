@@ -26,6 +26,7 @@ struct MessageHeader {
         ok = 1,
         error = 2,
         action = 3,
+        handshake = 4,
     };
     Flag     flag = Flag::ok;
     uint8_t  padding;
@@ -33,15 +34,23 @@ struct MessageHeader {
     uint16_t len2 = 0;
 };
 
+struct UserInfo {
+    std::string user_alias;
+};
+
+class ClientSession;
+
 class ClientConnection : public networking::Connection, public action::IActionSource {
 public:
-    ClientConnection(networking::Scheduler& scheduler, action::ConcurrentBufferingActionSink& send_data);
+    ClientConnection(networking::Scheduler& scheduler, ClientSession& session, action::ConcurrentBufferingActionSink& send_data);
 public:
     void notify_send_data_available();
 private:
     void connection_handler(networking::error_ref e);
     bool check_error(networking::error_ref e);
 private:
+    void handle_handshake();
+
     void handle_incomming();
     void receive_action_headers();
     void receive_action_data();
@@ -58,11 +67,13 @@ private:
 
     action::ConcurrentBufferingActionSink& m_send_data;
     bool m_send_active = false;
+
+    ClientSession& m_session;
 };
 
 class ClientSession {
 public:
-    ClientSession();
+    ClientSession(const UserInfo& user_info);
     ~ClientSession();
 public:
     void start_thread();
@@ -73,10 +84,13 @@ public:
 private:
     void notify_send();
 private:
+    UserInfo m_user_info;
     networking::Scheduler m_scheduler;
     action::ConcurrentBufferingActionSink m_send_buffer;
     std::unique_ptr<ClientConnection> m_client_connection;
     std::thread m_thread;
+private:
+    friend class ClientConnection;
 };
 
 }

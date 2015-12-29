@@ -47,6 +47,7 @@ uint32_t ServerSession::get_next_user_id()
 ServerConnection::ServerConnection(ServerSession& session, Socket &&socket)
     : networking::Connection(std::move(socket))
     , m_session(session)
+    , m_send_active(true)
 {
     set_connection_handler(sol::make_delegate(this,connection_handler));
     m_send_pipe.set_notify_callback(sol::make_delegate(this,notify_send));
@@ -56,7 +57,7 @@ void ServerConnection::connection_handler(error_ref e)
 {
     if (check_error(e)) {
         m_user_id = m_session.get_next_user_id();
-        handle_incomming();
+        handle_handshake();
     }
 }
 
@@ -67,6 +68,26 @@ bool ServerConnection::check_error(error_ref e)
         return false;
     }
     return true;
+}
+
+void ServerConnection::handle_handshake()
+{
+    socket().receive(buffer(m_receive_header),[this](error_ref e){
+        if (check_error(e)) {
+            if (m_receive_header.flag == MessageHeader::Flag::handshake) {
+                m_tmp_buffer.resize(m_receive_header.len1);
+                socket().receive(buffer(m_tmp_buffer),[this](error_ref e){
+                    if (check_error(e)) {
+                        std::cout << "alias: " << std::string(m_tmp_buffer.data()) << std::endl;
+                        handle_incomming();
+                        handle_outgoing();
+                    }
+                });
+            } else {
+                std::cout << "warning: unsupported MessageHeader" << std::endl;
+            }
+        }
+    });
 }
 
 void ServerConnection::handle_incomming()

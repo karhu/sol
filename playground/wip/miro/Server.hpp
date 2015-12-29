@@ -23,6 +23,8 @@ private:
     void connection_handler(networking::error_ref e);
     bool check_error(networking::error_ref e);
 private:
+    void handle_handshake();
+
     void handle_incomming();
     void receive_action_headers(uint16_t len_header, uint16_t len_data);
     void receive_action_data(uint16_t len_header, uint16_t len_data);
@@ -42,6 +44,8 @@ private:
 
     action::ActionSender m_receive_pipe;
     action::NotifyingActionBuffer m_send_pipe;
+
+    std::vector<char> m_tmp_buffer;
 
 private:
     bool m_send_active = false;

@@ -57,7 +57,7 @@ namespace sol {
         int w,h;
         auto& data = m_data[wh.value];
         SDL_GetWindowSize((SDL_Window*)data.sdl_window, &w, &h);
-        return vec2f{w,h};
+        return vec2f{(float)w,(float)h};
     }
 
     vec2f WindowSystem::get_render_target_dimensions(WindowHandle wh)
@@ -66,7 +66,7 @@ namespace sol {
         int w,h;
         auto& data = m_data[wh.value];
         SDL_GL_GetDrawableSize((SDL_Window*)data.sdl_window, &w, &h);
-        return vec2f{w,h};
+        return vec2f{(float)w,(float)h};
     }
 
     WindowHandle WindowSystem::get_main_window()

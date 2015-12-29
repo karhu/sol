@@ -5,7 +5,8 @@
 #include "miro/action/connect.hpp"
 #include "miro/action/ActionDefinitions.hpp"
 
-CanvasView::CanvasView()
+CanvasView::CanvasView(sol::Context& context)
+    : m_context(context)
 {
 }
 
@@ -25,11 +26,6 @@ bool CanvasView::set_canvas(miro::Canvas &canvas)
     return true;
 }
 
-void CanvasView::set_transform(Transform2f transform)
-{
-    m_transform = transform;
-}
-
 miro::action::IActionSource &CanvasView::get_action_source()
 {
     return m_writer;
@@ -41,6 +37,8 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
     using namespace miro::action;
 
     if (!m_canvas) return;
+
+    assert_view_clean();
 
     uint8_t type = 0;
 
@@ -55,17 +53,62 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
         type = 0;
     }
 
-    bool written;
-    written = miro::action::write_stroke_action(
-                m_writer.buffer(),HeaderMeta(0),
-                event.position,
-                event.pressure,
-                1, type);
+    assert_write_ok(write_stroke_action(
+        m_writer.buffer(),HeaderMeta(0),
+        event.position,
+        event.pressure,
+        1, type
+    ));
+    m_writer.send_and_reset();
+}
 
+void CanvasView::handle_window_event(const sol::WindowEvent &event)
+{
+    m_view_dirty = true;
+}
+
+void CanvasView::assert_view_clean()
+{
+    using T2 = Transform2;
+
+    using namespace miro::action;
+    if (m_view_dirty)
+    {
+        // update transform
+        auto& windows = m_context.windows();
+        const vec2f win_dim = windows.get_render_target_dimensions(windows.get_main_window());
+        const vec2f canvas_dim = m_canvas->dimensions();
+
+        // set up the necessary transforms
+        vec2f scaled_dim_px = canvas_dim * m_canvas_scale;
+        vec2f offset_px = m_canvas_position * win_dim;
+
+        // transform from relative canvas coordinates to absolute windows coordinates
+        const T2 t_canvas_view = T2::Scale(scaled_dim_px)
+                * T2::Translation(scaled_dim_px*-0.5f)
+                * T2::Rotation(-m_canvas_rotation) // why do we have to invert the rotation here?
+                * T2::Translation(offset_px);
+
+        const T2 t_viewa_canvasr = t_canvas_view.inverse();
+        const T2 t_viewr_canvasa = T2::Scale(win_dim) * t_viewa_canvasr * T2::Scale(canvas_dim);
+
+        m_transform = t_viewr_canvasa;
+
+        // notify
+        assert_write_ok(write_viewport_action(
+            m_writer.buffer(),HeaderMeta(0),
+            m_transform
+        ));
+
+        m_view_dirty = false;
+    }
+}
+
+void CanvasView::assert_write_ok(bool written)
+{
+    // TODO
     if (!written) {
         std::cout << "write error" << std::endl;
-        // TODO error
     }
-    m_writer.send_and_reset();
 }
 

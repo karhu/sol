@@ -84,14 +84,14 @@ namespace miro { namespace action {
         }
 
         template<typename ActionT>
-        void end_action(RelativeMemoryRange16Writer& writer, int16_t timestamp, int16_t user = 0)
+        void end_action(RelativeMemoryRange16Writer& writer, HeaderMeta hm)
         {
             m_headers.emplace_back();
             auto& h = m_headers.back();
             h.memory = writer.relative_frame();
             h.memory.m_size = writer.front();
-            h.meta.user = user;
-            h.meta.timestamp = timestamp;
+            h.meta.user = hm.user;
+            h.meta.timestamp = hm.timestamp;
             h.meta.type = ActionT::Type;
 
             m_front = writer.relative_frame().m_offset + writer.front();

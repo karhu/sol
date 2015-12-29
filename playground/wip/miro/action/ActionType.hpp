@@ -7,6 +7,7 @@ namespace miro { namespace action {
         Stroke,
         Viewport,
         User,
+        Message,
     };
 
 }}

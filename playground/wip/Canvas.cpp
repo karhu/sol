@@ -61,20 +61,23 @@ void Canvas::update(sol::Context& ctx)
     const T2 t_wina_canvasr = t_canvas_win.inverse();
     const T2 t_winr_canvasa = T2::Scale(win_dim) * t_wina_canvasr * T2::Scale(fb_dim);
 
-    m_transform_winr_canvasa = t_winr_canvasa;
+    //m_transform_winr_canvasa = t_winr_canvasa;
 
     m_render_context.begin_frame(m_render_target);
     m_render_context.bind(m_render_target);
     nvgResetTransform(vg);
     nvgReset(vg);
 
+    using AT = miro::action::ActionType;
+
     // render unconfirmed
+#if 0
     nvgFillColor(vg, nvgRGBA(255,0,0,64));
     m_sink_unconfirmed->handle_actions([this,vg](action::ActionRange range){
         for (uint16_t i=0; i < range.count(); i++) {
             auto ar = range.get(i);
             switch (ar.header().meta.type) {
-                case miro::action::ActionType::Stroke:
+                case AT::Stroke:
                 {
                     auto a = ar.data<action::StrokeActionRef>();
                     auto p = a.position();
@@ -85,13 +88,19 @@ void Canvas::update(sol::Context& ctx)
                     nvgFill(vg);
                     break;
                 }
+                case AT::Viewport:
+                {
+                    auto a = ar.data<action::ViewportActionRef>();
+                    auto& t = a.transform();
+                    m_transform_winr_canvasa = t;
+                }
                 default:
                     std::cout << "unhandled action type" << std::endl;
             }
         }
         return true;
     });
-
+#endif
     // render confirmed
     nvgFillColor(vg, nvgRGBA(0,0,255,64));
     m_sink_confirmed->handle_actions([this,vg](action::ActionRange range){
@@ -108,6 +117,12 @@ void Canvas::update(sol::Context& ctx)
                     nvgCircle(vg, p.x, p.y, 3);
                     nvgFill(vg);
                     break;
+                }
+                case AT::Viewport:
+                {
+                    auto a = ar.data<action::ViewportActionRef>();
+                    auto& t = a.transform();
+                    m_transform_winr_canvasa = t;
                 }
                 default:
                     std::cout << "unhandled action type" << std::endl;
@@ -163,13 +178,18 @@ void Canvas::render(sol::Context &ctx)
 
 }
 
-Canvas::UserContext* Canvas::get_user_context(uint16_t id)
+vec2f Canvas::dimensions() const
+{
+    return (vec2f)m_render_target.dimensions();
+}
+
+UserContext* Canvas::get_user_context(uint16_t id)
 {
     if (id < m_user_contexts.size()) return nullptr;
     return &m_user_contexts[id];
 }
 
-void Canvas::init_user_context(uint16_t id, const Canvas::UserContext &context)
+void Canvas::init_user_context(uint16_t id, const UserContext &context)
 {
     if (id < m_user_contexts.size()) m_user_contexts.resize(id+1);
     m_user_contexts[id] = context;

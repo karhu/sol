@@ -18,6 +18,13 @@ namespace action {
     class BufferingActionSink;
 }
 
+struct UserContext {
+    Transform2f m_transform;    // transform from stroke coordinates
+                                // to canvas coordinates
+    std::string m_name;         // name chosen by the user
+    uint16_t    m_id;           // automatically assigned id
+};
+
 class Canvas
 {
 public:
@@ -29,11 +36,8 @@ public:
 public:
     void update(sol::Context &ctx);
     void render(sol::Context &ctx);
-private:
-    struct UserContext {
-        Transform2f m_view;
-        std::string m_name;
-    };
+public:
+    vec2f dimensions() const;
 private:
     UserContext* get_user_context(uint16_t id);
     void init_user_context(uint16_t id, const UserContext& context);

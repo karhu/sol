@@ -61,7 +61,7 @@ struct RenderTarget
     static RenderTarget Default;
 public:
     inline NVGLUframebuffer* impl() { return (NVGLUframebuffer*) m_impl; }
-    inline vec2u32 dimensions() { return vec2u32{m_width,m_height}; }
+    inline vec2u32 dimensions() const { return vec2u32{m_width,m_height}; }
 private:
     void* m_impl = nullptr;
     uint32_t m_width = 0;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vec2.hpp"
+#include "Transform2.hpp"
 
 #include "ActionReference.hpp"
 
@@ -49,16 +50,52 @@ namespace miro { namespace action {
         data->type = type;
 
         // write the header
-        b.end_action<StrokeActionData>(w,hm.timestamp,hm.user);
+        b.end_action<StrokeActionData>(w,hm);
 
         return true;
     }
+
+    // UserChange Action //
+
+    struct ViewPortActionData {
+    public:
+        static constexpr ActionType Type = ActionType::Viewport;
+    public:
+        Transform2 transform;
+    };
+
+    inline bool write_viewport_action(ActionBuffer& b, HeaderMeta hm,
+        const Transform2& transform)
+    {
+        // get the memory
+        size_t data_size = sizeof(ViewPortActionData);
+        auto w = b.begin_action(data_size);
+        if (!w.valid()) return false;
+
+        // write the data
+        auto data = w.emplace<ViewPortActionData>();
+        if (data == nullptr) return false;
+        data->transform = transform;
+
+        // write the header
+        b.end_action<ViewPortActionData>(w,hm);
+
+        return true;
+    }
+
+    struct ViewportActionRef : public ActionReference<ViewPortActionData>
+    {
+        ViewportActionRef() {}
+        ViewportActionRef(ActionBuffer& b, uint16_t ai) : ActionReference(b,ai) {}
+
+        const Transform2& transform() { return data().transform; }
+    };
 
     // Message Action //
 
     struct MessageActionData {
     public:
-        static constexpr ActionType Type = ActionType::User;
+        static constexpr ActionType Type = ActionType::Message;
     public:
         StringRef message;
         uint16_t  message_id;
@@ -81,7 +118,7 @@ namespace miro { namespace action {
         if (!data->message.write(w, message)) return false;
 
         // write the header
-        b.end_action<MessageActionData>(w,hm.timestamp,hm.user);
+        b.end_action<MessageActionData>(w,hm);
 
         return true;
     }

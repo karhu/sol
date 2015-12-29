@@ -1,6 +1,8 @@
 #include "miro_client.hpp"
 
 
+#include "miro/action/ActionDefinitions.hpp"
+
 #include <iostream>
 
 
@@ -9,10 +11,11 @@ using namespace networking;
 namespace miro
 {
 
-ClientSession::ClientSession()
+ClientSession::ClientSession(const UserInfo& user_info)
+    : m_user_info(user_info)
 {
-    m_client_connection.reset(new ClientConnection(m_scheduler, m_send_buffer));
     m_send_buffer.set_notify_callback(sol::make_delegate(this,notify_send));
+    m_client_connection.reset(new ClientConnection(m_scheduler,*this, m_send_buffer));
 }
 
 
@@ -54,13 +57,15 @@ void ClientSession::notify_send()
     });
 }
 
-// -- ClientSession ------------------ //
+// -- ClientConnection ------------------ //
 
-ClientConnection::ClientConnection(Scheduler &scheduler, action::ConcurrentBufferingActionSink &send_data)
+ClientConnection::ClientConnection(Scheduler &scheduler, ClientSession &session, action::ConcurrentBufferingActionSink &send_data)
     : Connection(scheduler)
     , m_send_data(send_data)
+    , m_session(session)
 {
     set_connection_handler(sol::make_delegate(this,connection_handler));
+    m_send_active = true;
 }
 
 void ClientConnection::notify_send_data_available()
@@ -71,8 +76,7 @@ void ClientConnection::notify_send_data_available()
 void ClientConnection::connection_handler(networking::error_ref e)
 {
    if (check_error(e)) {
-       handle_incomming();
-       handle_outgoing();
+       handle_handshake();
    }
 }
 
@@ -83,6 +87,27 @@ bool ClientConnection::check_error(networking::error_ref e)
         return false;
     }
     return true;
+}
+
+void ClientConnection::handle_handshake()
+{
+    auto& alias = m_session.m_user_info.user_alias;
+
+    m_send_header = MessageHeader();
+    m_send_header.flag = MessageHeader::Flag::handshake;
+    m_send_header.len1 = alias.length() + 1;
+
+    socket().send(buffer(m_send_header),[this](error_ref e) {
+        if (check_error(e)) {
+            auto& alias = m_session.m_user_info.user_alias;
+            socket().send((void*)alias.data(),alias.length()+1,[this](error_ref e) {
+                if (check_error(e)) {
+                    handle_outgoing();
+                    handle_incomming();
+                }
+            });
+        }
+    });
 }
 
 void ClientConnection::handle_incomming()

@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
 
     // read command line arguments ///////
     bool arg_server = false;
-    ClientArgs client_args;
+    miro::ClientArgs client_args;
     try {
         TCLAP::CmdLine cmd("Command description message", ' ', "0.9");
         TCLAP::SwitchArg server_switch("s","server","run server", cmd, false);
@@ -91,7 +91,8 @@ int main(int argc, char* argv[])
     }
     // run client /////////////////////////
     else {
-        miro::Client client(client_args.host);
+        std::cout << client_args.user_alias << std::endl;
+        miro::Client client(client_args);
         return_code = client.run();
     }
 
