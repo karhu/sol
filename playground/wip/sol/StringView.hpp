@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stddef.h>
+
 namespace sol {
 
     struct StringView

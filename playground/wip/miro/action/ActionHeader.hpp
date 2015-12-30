@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ActionType.hpp"
+
 namespace miro { namespace action {
 
     struct HeaderMeta {

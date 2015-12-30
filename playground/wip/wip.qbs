@@ -45,7 +45,6 @@ CppApplication {
         "miro/action/ActionHeader.hpp",
         "miro/action/ActionRange.cpp",
         "miro/action/ActionRange.hpp",
-        "miro/action/ActionReference.cpp",
         "miro/action/ActionReference.hpp",
         "miro/action/ActionSender.hpp",
         "miro/action/ActionType.hpp",

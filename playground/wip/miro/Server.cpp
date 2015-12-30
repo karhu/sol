@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "miro/action/connect.hpp"
+#include "miro/action/ActionDefinitions.hpp"
 
 using namespace networking;
 
@@ -33,13 +34,16 @@ void ServerSession::add_connection(Socket &&socket)
 {
     m_connections.emplace_back(new ServerConnection(*this, std::move(socket)));
     auto& con = m_connections.back();
-    connect(con->receive_pipe(),m_action_pipe);
-    connect(m_action_pipe,con->send_pipe());
 }
 
 uint32_t ServerSession::get_next_user_id()
 {
     return m_next_user_id++;
+}
+
+action::ActionForwarder &ServerSession::action_multiplexer()
+{
+    return m_action_pipe;
 }
 
 // ServerConnection /////////////////////////////////
@@ -49,6 +53,8 @@ ServerConnection::ServerConnection(ServerSession& session, Socket &&socket)
     , m_session(session)
     , m_send_active(true)
 {
+    action::connect(receive_pipe(),session.action_multiplexer());
+    action::connect(session.action_multiplexer(),send_pipe());
     set_connection_handler(sol::make_delegate(this,connection_handler));
     m_send_pipe.set_notify_callback(sol::make_delegate(this,notify_send));
 }
@@ -78,9 +84,28 @@ void ServerConnection::handle_handshake()
                 m_tmp_buffer.resize(m_receive_header.len1);
                 socket().receive(buffer(m_tmp_buffer),[this](error_ref e){
                     if (check_error(e)) {
-                        std::cout << "alias: " << std::string(m_tmp_buffer.data()) << std::endl;
+                        auto alias = std::string(m_tmp_buffer.data());
+
+                        // send specific message to the newly connected client
+                        m_buffer_send.reset();
+                        action::write_user_action(m_buffer_send, action::HeaderMeta(),
+                            alias, m_user_id,
+                            action::UserActionRef::Kind::Join,
+                            action::UserActionRef::Flag::Local);
+
+                        // send the general message to all connected clients
+                        m_buffer_receive.reset();
+                        action::write_user_action(m_buffer_receive, action::HeaderMeta(),
+                            alias, m_user_id,
+                            action::UserActionRef::Kind::Join,
+                            action::UserActionRef::Flag::None);
+                        m_receive_pipe.send(m_buffer_receive.all());
+                        m_buffer_receive.reset();
+
+                        std::cout << "new user: <" << alias << "," << m_user_id << ">" << std::endl;
+
+                        handle_outgoing(false);
                         handle_incomming();
-                        handle_outgoing();
                     }
                 });
             } else {
@@ -116,6 +141,10 @@ void ServerConnection::receive_action_headers(uint16_t len_headers, uint16_t len
     //std::cout << "<C><waiting to receive actions>"<< std::endl;
     socket().receive(m_buffer_receive.m_headers.data(),len_headers,[=](error_ref e){
         if (check_error(e)) {
+            // make sure the right user id is set
+            for (auto& h : m_buffer_receive.m_headers) {
+                h.meta.user = m_user_id;
+            }
             // std::cout << "<C>< received " << len_headers / sizeof(actions::ActionHeader) << " action headers>" << std::endl;
             receive_action_data(len_headers,len_data);
         }
@@ -170,9 +199,9 @@ void ServerConnection::send_action_data()
     });
 }
 
-void ServerConnection::handle_outgoing()
+void ServerConnection::handle_outgoing(bool reset)
 {
-    m_buffer_send.reset();
+    if (reset) m_buffer_send.reset();
     m_send_pipe.handle_actions([this](action::ActionRange range) {
        if (range.count() == 0) return true; // get another one
        m_buffer_send.copy_action(range);

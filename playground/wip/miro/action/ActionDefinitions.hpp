@@ -4,6 +4,7 @@
 #include "Transform2.hpp"
 
 #include "ActionReference.hpp"
+#include "ActionBuffer.hpp"
 
 namespace miro { namespace action {
 
@@ -55,7 +56,70 @@ namespace miro { namespace action {
         return true;
     }
 
-    // UserChange Action //
+    // UserAction //
+    struct UserActionData {
+    public:
+        static constexpr ActionType Type = ActionType::User;
+    public:
+        enum class Kind : uint8_t {
+            Unknown = 0,
+            Join = 1,
+            Update = 2,
+            Leave = 3,
+        };
+
+        enum class Flag : uint8_t {
+            None = 0,
+            Local = 1,
+            Spectator = 2,
+        };
+    public:
+        StringRef alias;
+        uint16_t  idx;
+        Kind      kind;
+        Flag      flags;
+        // TODO server signature
+    };
+
+    inline bool write_user_action(ActionBuffer& b, HeaderMeta hm,
+        const std::string& alias, uint16_t idx,
+        UserActionData::Kind kind, UserActionData::Flag flags)
+    {
+        // get the memory
+        size_t string_size = alias.length()+1;
+        size_t data_size = sizeof(UserActionData)+string_size;
+        auto w = b.begin_action(data_size);
+        if (!w.valid()) return false;
+
+        // write the data
+        auto data = w.emplace<UserActionData>();
+        if (data == nullptr) return false;
+        data->idx = idx;
+        data->kind = kind;
+        data->flags = flags;
+        if (!data->alias.write(w, alias)) return false;
+
+        // write the header
+        b.end_action<UserActionData>(w,hm);
+
+        return true;
+    }
+
+    struct UserActionRef : public ActionReference<UserActionData>
+    {
+        using Kind = UserActionData::Kind;
+        using Flag = UserActionData::Flag;
+
+        UserActionRef() {}
+        UserActionRef(ActionBuffer& b, uint16_t ai) : ActionReference(b,ai) {}
+
+        const sol::StringView alias() { return resolve_string(data().alias); }
+        uint16_t idx() { return data().idx; }
+        Kind kind() { return data().kind; }
+        Flag flags() { return data().flags; }
+    };
+
+    // Viewport Action //
 
     struct ViewPortActionData {
     public:

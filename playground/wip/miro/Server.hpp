@@ -32,7 +32,7 @@ private:
     void send_action_message();
     void send_action_headers();
     void send_action_data();
-    void handle_outgoing();
+    void handle_outgoing(bool reset = true);
 
     void notify_send();
 private:
@@ -56,12 +56,12 @@ class ServerSession {
 public:
     void add_connection(networking::Socket&& socket);
     uint32_t get_next_user_id();
-
+    action::ActionForwarder& action_multiplexer();
 private:
     std::string m_name;
     std::vector<std::unique_ptr<ServerConnection>> m_connections;
     action::ActionForwarder m_action_pipe;
-    uint32_t m_next_user_id = 0;
+    uint32_t m_next_user_id = 1;
 };
 
 class Server {

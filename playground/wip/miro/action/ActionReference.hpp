@@ -3,6 +3,8 @@
 #include "sol/StringView.hpp"
 #include "RelativeMemoryRange16.hpp"
 #include "StringRef.hpp"
+#include "ActionHeader.hpp"
+#include "ActionBuffer.hpp"
 
 namespace miro { namespace action {
 

@@ -68,8 +68,8 @@ int32_t miro::Client::run()
     incomming_buffer.set_notify_callback(sol::make_delegate(this,handle_network_interrupt));
 
     while (!ctx.events().should_quit()) {
-        auto count = ctx.events().wait();
-        std::cout << "events " << count << std::endl;
+        ctx.events().wait();
+        //std::cout << "events " << count << std::endl;
         incomming_buffer.poll();
         canvas.update(ctx);
         canvas.render(ctx);

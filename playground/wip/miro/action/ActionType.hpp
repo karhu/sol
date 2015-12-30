@@ -4,9 +4,9 @@ namespace miro { namespace action {
 
     enum class ActionType : uint8_t{
         Unknown = 0,
-        Stroke,
-        Viewport,
-        User,
+        Stroke,         // draw a stroke
+        Viewport,       // change viewport transform
+        User,           // user update
         Message,
     };
 

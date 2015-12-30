@@ -16,12 +16,13 @@ namespace miro {
 
 namespace action {
     class BufferingActionSink;
+    struct UserActionRef;
 }
 
 struct UserContext {
-    Transform2f m_transform;    // transform from stroke coordinates
+    Transform2  m_transform;    // transform from stroke coordinates
                                 // to canvas coordinates
-    std::string m_name;         // name chosen by the user
+    std::string m_alias;        // name chosen by the user
     uint16_t    m_id;           // automatically assigned id
 };
 
@@ -39,15 +40,15 @@ public:
 public:
     vec2f dimensions() const;
 private:
-    UserContext* get_user_context(uint16_t id);
-    void init_user_context(uint16_t id, const UserContext& context);
+    UserContext* get_user_context(uint16_t idx);
+    void handle_user_action(action::UserActionRef& action);
 
 private:
     std::unique_ptr<action::BufferingActionSink> m_sink_unconfirmed;
     std::unique_ptr<action::BufferingActionSink> m_sink_confirmed;
 
     std::vector<UserContext> m_user_contexts;
-    uint16_t local_user_id = 0;
+    uint16_t m_local_user_idx = 0;
 
     sol::RenderContext& m_render_context;
     sol::RenderTarget m_render_target;

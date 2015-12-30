@@ -10,8 +10,8 @@
 
 #include "Transform2.hpp"
 
-#include "miro/action/BufferingActionSink.hpp"
 #include "miro/action/ActionDefinitions.hpp"
+#include "miro/action/BufferingActionSink.hpp"
 
 using T2 = Transform2;
 
@@ -110,19 +110,42 @@ void Canvas::update(sol::Context& ctx)
                 case miro::action::ActionType::Stroke:
                 {
                     auto a = ar.data<action::StrokeActionRef>();
-                    auto p = a.position();
-                    p = transform_point(p,m_transform_winr_canvasa);
+                    auto uc = get_user_context(a.header().user);
+                    if (uc != nullptr) {
+                        auto p = a.position();
+                        p = transform_point(p,uc->m_transform);
 
-                    nvgBeginPath(vg);
-                    nvgCircle(vg, p.x, p.y, 3);
-                    nvgFill(vg);
+                        std::cout << (int)a.header().user << std::endl;
+
+                        nvgBeginPath(vg);
+                        nvgCircle(vg, p.x, p.y, 3);
+                        nvgFill(vg);
+                    }
                     break;
                 }
                 case AT::Viewport:
                 {
                     auto a = ar.data<action::ViewportActionRef>();
-                    auto& t = a.transform();
-                    m_transform_winr_canvasa = t;
+                    auto uc = get_user_context(a.header().user);
+                    if (uc != nullptr) {
+                        uc->m_transform = a.transform();
+                        std::cout << "vp1: " << (int)a.header().user << std::endl;
+                    } else {
+                        std::cout << "vp2: " << (int)a.header().user << std::endl;
+                    }
+                    break;
+                }
+                case AT::User:
+                {
+                    auto a = ar.data<action::UserActionRef>();
+                    std::cout << "user: \n";
+                    std::cout << "  alias: " << std::string(a.alias().ptr(),a.alias().size()) << "\n";
+                    std::cout << "  idx:   " << a.idx() << "\n";
+                    std::cout << "  kind:  " << (int)a.kind() << "\n";
+                    std::cout << "  flags: " << (int)a.flags() << "\n";
+                    std::cout << std::endl;
+                    handle_user_action(a);
+                    break;
                 }
                 default:
                     std::cout << "unhandled action type" << std::endl;
@@ -183,16 +206,26 @@ vec2f Canvas::dimensions() const
     return (vec2f)m_render_target.dimensions();
 }
 
-UserContext* Canvas::get_user_context(uint16_t id)
+UserContext* Canvas::get_user_context(uint16_t idx)
 {
-    if (id < m_user_contexts.size()) return nullptr;
-    return &m_user_contexts[id];
+    if (idx == 0) return nullptr;
+    if (idx >= m_user_contexts.size()) return nullptr;
+    return &m_user_contexts[idx];
 }
 
-void Canvas::init_user_context(uint16_t id, const UserContext &context)
+void Canvas::handle_user_action(action::UserActionRef &action)
 {
-    if (id < m_user_contexts.size()) m_user_contexts.resize(id+1);
-    m_user_contexts[id] = context;
+    auto idx = action.idx();
+    if (idx >= m_user_contexts.size()) m_user_contexts.resize(idx+1);
+    m_user_contexts[idx] = UserContext{
+        Transform2(),
+        std::string(action.alias().ptr(),action.alias().size()),
+        idx
+    };
+
+    if ((int)action.flags() & (int)action::UserActionRef::Flag::Local) {
+        m_local_user_idx = idx;
+    }
 }
 
 }
