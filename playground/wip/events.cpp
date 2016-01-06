@@ -162,6 +162,18 @@ namespace sol {
                 for (auto eh : m_handlers) { eh->handle_cursor_event(ce); }
                 break;
             }
+            case SDL_KEYUP:
+            case SDL_KEYDOWN: {
+                auto ew = e.key;
+                KeyboardEvent kbe;
+                kbe.action = ew.type == SDL_KEYDOWN ?
+                            KeyboardEvent::Action::Press :
+                            KeyboardEvent::Action::Release;
+                kbe.key = (KeyboardKey)ew.keysym.sym;
+                for (auto eh : m_handlers) { eh->handle_keyboard_event(kbe); }
+                break;
+            }
+
         }
     }
 

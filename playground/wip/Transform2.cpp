@@ -50,6 +50,13 @@ Transform2 Transform2::Scale(vec2f scale)
     return t;
 }
 
+Transform2 Transform2::Scale(float s)
+{
+    Transform2 t;
+    nvgTransformScale(t.data(),s,s);
+    return t;
+}
+
 Transform2 Transform2::inverse() const
 {
     Transform2 result;

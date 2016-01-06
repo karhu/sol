@@ -31,6 +31,7 @@ namespace miro { namespace action {
     protected:
         RelativeMemoryRange16 mem_ref() { return m_mem_ref; }
         DataT& data() { return *m_data; }
+        const DataT& data() const { return *m_data; }
         sol::StringView resolve_string(StringRef ref) { return ref.read(*m_buffer, m_mem_ref); }
     private:
         ActionBuffer* m_buffer = nullptr;

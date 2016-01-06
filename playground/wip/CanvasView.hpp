@@ -22,20 +22,25 @@ public:
 public:
     void handle_cursor_event(const sol::CursorEvent& event);
     void handle_window_event(const sol::WindowEvent& event);
+    void handle_keyboard_event(const sol::KeyboardEvent& event);
 protected:
-    void assert_view_clean();
+    void dirty_view();
+    void assert_view_clean(bool send = false);
     void assert_write_ok(bool written);
 private:
     miro::action::ActionWriter m_writer;
-    Transform2 m_transform;
+    //Transform2 m_transform;
     miro::Canvas* m_canvas = nullptr;
     bool m_down = false;
 
     bool m_view_dirty = true;
     sol::Context& m_context;
 
-    vec2f m_canvas_position = {0.5,0.5};
-    float m_canvas_rotation = 30.0f;
+    vec2f m_canvas_position = {0.4,0.4};
+    float m_canvas_rotation = 0.0f;
     float m_canvas_scale = 1.0f;
+
+    bool m_transform_mode = false;
+    vec2f m_transform_last;
 };
 

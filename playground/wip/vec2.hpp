@@ -40,6 +40,7 @@ public:
 
 using vec2f = vec2<float>;
 using vec2u32 = vec2<uint32_t>;
+using vec2u16 = vec2<uint16_t>;
 
 struct BoundingBox2f {
     vec2f min, max;

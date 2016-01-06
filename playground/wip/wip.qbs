@@ -21,6 +21,7 @@ CppApplication {
         "delegate.hpp",
         "events.cpp",
         "events.hpp",
+        "keyboard.hpp",
         "main.cpp",
         "context.hpp",
         "context.cpp",

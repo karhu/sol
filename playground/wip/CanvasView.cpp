@@ -36,38 +36,70 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
     using Action = sol::CursorEvent::Action;
     using namespace miro::action;
 
+    std::cout << "ce: " << event.position.x << " / " << event.position.y << std::endl;
+
     if (!m_canvas) return;
 
-    assert_view_clean();
+    if (m_transform_mode) {
+        if (event.action == Action::Down) {
+            m_down = true;
+            m_transform_last = event.position;
+        } else if (event.action == Action::Up ) {
+            m_down = false;
+        } else if (event.action == Action::Move) {
+            if (!m_down) return;
+            auto delta = event.position - m_transform_last;
+            m_transform_last = event.position;
+            m_canvas_position = m_canvas_position + delta;
+            m_view_dirty = true;
+            assert_view_clean(true);
+        }
+    } else {
+        uint8_t type = 0;
+        if (event.action == Action::Down) {
+            m_down = true;
+            type = 2;
+        } else if (event.action == Action::Up ) {
+            m_down = false;
+            type = 1;
+        } else if (event.action == Action::Move) {
+            if (!m_down) return;
+            type = 0;
+        }
 
-    uint8_t type = 0;
+        assert_view_clean();
 
-    if (event.action == Action::Down) {
-        m_down = true;
-        type = 2;
-    } else if (event.action == Action::Up ) {
-        m_down = false;
-        type = 1;
-    } else if (event.action == Action::Move) {
-        if (!m_down) return;
-        type = 0;
+        assert_write_ok(write_stroke_action(
+            m_writer.buffer(),HeaderMeta(0),
+            event.position,
+            event.pressure,
+            1, type
+        ));
+        m_writer.send_and_reset();
     }
-
-    assert_write_ok(write_stroke_action(
-        m_writer.buffer(),HeaderMeta(0),
-        event.position,
-        event.pressure,
-        1, type
-    ));
-    m_writer.send_and_reset();
 }
 
 void CanvasView::handle_window_event(const sol::WindowEvent &event)
 {
+    dirty_view();
+}
+
+void CanvasView::handle_keyboard_event(const sol::KeyboardEvent &event)
+{
+    if (event.key == sol::KeyboardKey::Space) {
+        if (event.is_press())
+            m_transform_mode = true;
+        else
+            m_transform_mode = false;
+    }
+}
+
+void CanvasView::dirty_view()
+{
     m_view_dirty = true;
 }
 
-void CanvasView::assert_view_clean()
+void CanvasView::assert_view_clean(bool send)
 {
     using T2 = Transform2;
 
@@ -84,24 +116,37 @@ void CanvasView::assert_view_clean()
         vec2f offset_px = m_canvas_position * win_dim;
 
         // transform from relative canvas coordinates to absolute windows coordinates
-        const T2 t_canvas_view = T2::Scale(scaled_dim_px)
-                * T2::Translation(scaled_dim_px*-0.5f)
-                * T2::Rotation(-m_canvas_rotation) // why do we have to invert the rotation here?
-                * T2::Translation(offset_px);
+//        const T2 t_canvas_view = T2::Scale(scaled_dim_px)
+//              * T2::Translation(scaled_dim_px*-0.5f)
+//              * T2::Rotation(-m_canvas_rotation) // why do we have to invert the rotation here?
+//              * T2::Translation(offset_px);
 
-        const T2 t_viewa_canvasr = t_canvas_view.inverse();
-        const T2 t_viewr_canvasa = T2::Scale(win_dim) * t_viewa_canvasr * T2::Scale(canvas_dim);
+        //const T2 t_viewa_canvasr = t_canvas_view.inverse();
+        const T2 t_viewr_canvasa =
+                  T2::Translation(-m_canvas_position)
+                * T2::Scale(win_dim)
+                * T2::Rotation(m_canvas_rotation)
+                * T2::Scale(vec2f{1,1}/m_canvas_scale)
+                * T2::Translation(canvas_dim*0.5f);
+                //* T2::Translation(scaled_dim_px*0.5f)
+                //* T2::Scale(vec2f{1,1}/m_canvas_scale);
+//      const T2 t_viewr_canvasa = T2::Scale(win_dim) * t_viewa_canvasr * T2::Scale(canvas_dim);
 
-        m_transform = t_viewr_canvasa;
+        auto transform = t_viewr_canvasa;
 
         // notify
         assert_write_ok(write_viewport_action(
             m_writer.buffer(),HeaderMeta(0),
-            m_transform
+            transform,
+            m_canvas_position,
+            m_canvas_rotation,
+            m_canvas_scale,
+            (vec2u16)win_dim
         ));
 
         m_view_dirty = false;
     }
+    if (send) m_writer.send_and_reset();
 }
 
 void CanvasView::assert_write_ok(bool written)

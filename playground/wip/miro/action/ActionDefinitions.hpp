@@ -126,10 +126,18 @@ namespace miro { namespace action {
         static constexpr ActionType Type = ActionType::Viewport;
     public:
         Transform2 transform;
+        vec2f   position;
+        float   rotation;
+        float   scale;
+        vec2u16 viewport_dim;
     };
 
     inline bool write_viewport_action(ActionBuffer& b, HeaderMeta hm,
-        const Transform2& transform)
+        const Transform2& transform,
+        const vec2f position,
+        const float rotation,
+        const float scale,
+        const vec2u16 viewport_dim)
     {
         // get the memory
         size_t data_size = sizeof(ViewPortActionData);
@@ -140,6 +148,10 @@ namespace miro { namespace action {
         auto data = w.emplace<ViewPortActionData>();
         if (data == nullptr) return false;
         data->transform = transform;
+        data->position = position;
+        data->rotation = rotation;
+        data->scale = scale;
+        data->viewport_dim = viewport_dim;
 
         // write the header
         b.end_action<ViewPortActionData>(w,hm);
@@ -152,7 +164,11 @@ namespace miro { namespace action {
         ViewportActionRef() {}
         ViewportActionRef(ActionBuffer& b, uint16_t ai) : ActionReference(b,ai) {}
 
-        const Transform2& transform() { return data().transform; }
+        const Transform2& transform() const { return data().transform; }
+        const vec2f&   position() const { return data().position; }
+        float rotation() const { return data().rotation; }
+        float scale() const { return data().scale; }
+        vec2u16 viewport_dim() const { return data().viewport_dim; }
     };
 
     // Message Action //

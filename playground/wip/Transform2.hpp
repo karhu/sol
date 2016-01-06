@@ -11,6 +11,7 @@ public:
     static Transform2 Translation(vec2f t);
     static Transform2 Rotation(float angle_d);
     static Transform2 Scale(vec2f s);
+    static Transform2 Scale(float s);
 public:
     Transform2 inverse() const;
 public:

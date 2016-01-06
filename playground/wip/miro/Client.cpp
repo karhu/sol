@@ -34,6 +34,10 @@ public:
         m_canvas_view.handle_window_event(event);
     }
 
+    virtual void handle_keyboard_event(const sol::KeyboardEvent &event) override {
+        m_canvas_view.handle_keyboard_event(event);
+    }
+
 public:
     CanvasView m_canvas_view;
 };

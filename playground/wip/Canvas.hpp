@@ -17,13 +17,37 @@ namespace miro {
 namespace action {
     class BufferingActionSink;
     struct UserActionRef;
+    struct ViewportActionRef;
 }
 
-struct UserContext {
-    Transform2  m_transform;    // transform from stroke coordinates
-                                // to canvas coordinates
+class Canvas;
+
+struct UserContext
+{
+    vec2f   m_canvas_position = {.5,.5};
+    float   m_canvas_rotation = 0;
+    float   m_canvas_scale = 1;
+    vec2u16 m_view_dimensions = {100,100};
+
     std::string m_alias;        // name chosen by the user
     uint16_t    m_id;           // automatically assigned id
+
+public:
+    void update_transform(const Canvas &canvas, action::ViewportActionRef& action);
+    const Transform2& stroke_transform(const Canvas& canvas);
+        // transform from stroke coordinates
+        // to canvas coordinates
+    const Transform2& canvas_transform(const Canvas& canvas);
+private:
+    Transform2 m_stroke_transform;
+        // transform from stroke coordinates
+        // to canvas coordinates
+    Transform2 m_canvas_transform;
+        // transform from relative canvas coordinates
+        // to absolute window coordinates
+    bool m_stroke_transform_dirty = true;
+    bool m_canvas_transform_dirty = true;
+
 };
 
 class Canvas
@@ -52,9 +76,6 @@ private:
 
     sol::RenderContext& m_render_context;
     sol::RenderTarget m_render_target;
-    vec2f m_position = {0.5,0.5};
-    float m_rotation = 30.0f;
-    float m_scale = 1.0f;
 
     Transform2 m_transform_winr_canvasa; // transform from relative window coordinates to absolute canvas ones
 };

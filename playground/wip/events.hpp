@@ -4,6 +4,7 @@
 #include <vector>
 #include "vec2.hpp"
 #include "common.hpp"
+#include "keyboard.hpp"
 
 namespace sol {
 
@@ -33,6 +34,20 @@ namespace sol {
         vec2f velocity;
     };
 
+    struct KeyboardEvent
+    {
+        enum class Action : uint8_t {
+            Press,
+            Release,
+        };
+
+        Action action;
+        KeyboardKey key;
+
+        inline bool is_press() const { return action == Action::Press; }
+        inline bool is_release() const { return action == Action::Release; }
+    };
+
     struct WindowEvent
     {
         enum class Type : uint8_t {
@@ -50,6 +65,7 @@ namespace sol {
         virtual ~EventHandler();
         virtual void handle_cursor_event(const CursorEvent& event) { UNUSED(event); }
         virtual void handle_window_event(const WindowEvent& event) { UNUSED(event); }
+        virtual void handle_keyboard_event(const KeyboardEvent& event) { UNUSED(event); }
     private:
         Events* m_source = nullptr;
     private:
