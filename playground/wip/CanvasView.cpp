@@ -11,6 +11,8 @@
 #include "miro/action/connect.hpp"
 #include "miro/action/ActionDefinitions.hpp"
 
+using T2 = Transform2;
+
 CanvasView::CanvasView(sol::Context& context)
     : m_context(context)
 {
@@ -42,6 +44,26 @@ void CanvasView::render(sol::Context &ctx, sol::RenderContext& rctx)
     auto vg = rctx.impl();
     m_canvas->render(ctx);
 
+    auto uc = m_canvas->get_local_user_context();
+
+    if (m_transform_mode) {
+        auto& tw = m_transform_widget;
+        T2 t =
+            T2::Scale(vec2f{1,-1}*uc->m_view_dimensions) *
+            T2::Translation(vec2f{0,1}*uc->m_view_dimensions);
+        auto p = transform_point(tw.center,t);
+        // draw a rectangle in canvas space
+        nvgResetTransform(vg);
+        //auto f = uc->canvas_transform(*this).data();
+        //nvgTransform(vg, f[0],f[1],f[2],f[3],f[4],f[5]);
+        nvgBeginPath(vg);
+        nvgCircle(vg,p.x,p.y,tw.radius_inner);
+        nvgPathWinding(vg, NVG_CCW);
+        nvgCircle(vg,p.x,p.y,tw.radius_outer);
+        nvgPathWinding(vg, NVG_CW);
+        nvgFillColor(vg,nvgRGBA(255,0,0,128));
+        nvgFill(vg);
+    }
 }
 
 void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
@@ -49,9 +71,10 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
     using Action = sol::CursorEvent::Action;
     using namespace miro::action;
 
-    std::cout << "ce: " << event.position.x << " / " << event.position.y << std::endl;
+    //std::cout << "ce: " << event.position.x << " / " << event.position.y << std::endl;
 
     if (!m_canvas) return;
+    m_last_cursor_event = event;
 
     if (m_transform_mode) {
         if (event.action == Action::Down) {
@@ -90,8 +113,6 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
         ));
         m_writer.send_and_reset();
     }
-
-    m_last_cursor_event = event;
 }
 
 void CanvasView::handle_window_event(const sol::WindowEvent &event)
@@ -103,10 +124,15 @@ void CanvasView::handle_keyboard_event(const sol::KeyboardEvent &event)
 {
     if (event.key == sol::KeyboardKey::Space) {
         if (event.is_press()) {
-            m_transform_mode = true;
-            m_transform_last = m_last_cursor_event.position;
+            if (!m_transform_widget.active) {
+                m_transform_mode = true;
+                m_transform_last = m_last_cursor_event.position;
+                m_transform_widget.center = m_transform_last;
+                m_transform_widget.active = true;
+            }
         } else {
             m_transform_mode = false;
+            m_transform_widget.active = false;
         }
     }
 }
@@ -126,35 +152,10 @@ void CanvasView::assert_view_clean(bool send)
         // update transform
         auto& windows = m_context.windows();
         const vec2f win_dim = windows.get_render_target_dimensions(windows.get_main_window());
-        const vec2f canvas_dim = m_canvas->dimensions();
-
-        // set up the necessary transforms
-        vec2f scaled_dim_px = canvas_dim * m_canvas_scale;
-        vec2f offset_px = m_canvas_position * win_dim;
-
-        // transform from relative canvas coordinates to absolute windows coordinates
-//        const T2 t_canvas_view = T2::Scale(scaled_dim_px)
-//              * T2::Translation(scaled_dim_px*-0.5f)
-//              * T2::Rotation(-m_canvas_rotation) // why do we have to invert the rotation here?
-//              * T2::Translation(offset_px);
-
-        //const T2 t_viewa_canvasr = t_canvas_view.inverse();
-        const T2 t_viewr_canvasa =
-                  T2::Translation(-m_canvas_position)
-                * T2::Scale(win_dim)
-                * T2::Rotation(m_canvas_rotation)
-                * T2::Scale(vec2f{1,1}/m_canvas_scale)
-                * T2::Translation(canvas_dim*0.5f);
-                //* T2::Translation(scaled_dim_px*0.5f)
-                //* T2::Scale(vec2f{1,1}/m_canvas_scale);
-//      const T2 t_viewr_canvasa = T2::Scale(win_dim) * t_viewa_canvasr * T2::Scale(canvas_dim);
-
-        auto transform = t_viewr_canvasa;
 
         // notify
         assert_write_ok(write_viewport_action(
             m_writer.buffer(),HeaderMeta(0),
-            transform,
             m_canvas_position,
             m_canvas_rotation,
             m_canvas_scale,

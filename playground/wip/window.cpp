@@ -11,6 +11,7 @@ namespace sol {
     WindowHandle WindowSystem::create(uint32_t width, uint32_t height)
     {
         WindowData data;
+        SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE,8);
         data.sdl_window = SDL_CreateWindow(
             "",
             SDL_WINDOWPOS_UNDEFINED,

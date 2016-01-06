@@ -50,5 +50,15 @@ private:
     vec2f m_transform_last;
 
     sol::CursorEvent m_last_cursor_event;
+
+private:
+    struct TransformWidget {
+        vec2f center;
+        bool active = false;
+
+        float radius_inner = 35;
+        float radius_outer = 45;
+
+    } m_transform_widget;
 };
 

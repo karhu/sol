@@ -125,7 +125,6 @@ namespace miro { namespace action {
     public:
         static constexpr ActionType Type = ActionType::Viewport;
     public:
-        Transform2 transform;
         vec2f   position;
         float   rotation;
         float   scale;
@@ -133,7 +132,6 @@ namespace miro { namespace action {
     };
 
     inline bool write_viewport_action(ActionBuffer& b, HeaderMeta hm,
-        const Transform2& transform,
         const vec2f position,
         const float rotation,
         const float scale,
@@ -147,7 +145,6 @@ namespace miro { namespace action {
         // write the data
         auto data = w.emplace<ViewPortActionData>();
         if (data == nullptr) return false;
-        data->transform = transform;
         data->position = position;
         data->rotation = rotation;
         data->scale = scale;
@@ -164,7 +161,6 @@ namespace miro { namespace action {
         ViewportActionRef() {}
         ViewportActionRef(ActionBuffer& b, uint16_t ai) : ActionReference(b,ai) {}
 
-        const Transform2& transform() const { return data().transform; }
         const vec2f&   position() const { return data().position; }
         float rotation() const { return data().rotation; }
         float scale() const { return data().scale; }

@@ -59,36 +59,7 @@ void Canvas::update(sol::Context& ctx)
     using AT = miro::action::ActionType;
 
     // render unconfirmed
-#if 0
-    nvgFillColor(vg, nvgRGBA(255,0,0,64));
-    m_sink_unconfirmed->handle_actions([this,vg](action::ActionRange range){
-        for (uint16_t i=0; i < range.count(); i++) {
-            auto ar = range.get(i);
-            switch (ar.header().meta.type) {
-                case AT::Stroke:
-                {
-                    auto a = ar.data<action::StrokeActionRef>();
-                    auto p = a.position();
-                    p = transform_point(p,m_transform_winr_canvasa);
 
-                    nvgBeginPath(vg);
-                    nvgCircle(vg, p.x, p.y, 3);
-                    nvgFill(vg);
-                    break;
-                }
-                case AT::Viewport:
-                {
-                    auto a = ar.data<action::ViewportActionRef>();
-                    auto& t = a.transform();
-                    m_transform_winr_canvasa = t;
-                }
-                default:
-                    std::cout << "unhandled action type" << std::endl;
-            }
-        }
-        return true;
-    });
-#endif
     // render confirmed
     nvgFillColor(vg, nvgRGBA(0,0,255,64));
     m_sink_confirmed->handle_actions([this,vg](action::ActionRange range){
@@ -104,10 +75,15 @@ void Canvas::update(sol::Context& ctx)
 
                         auto idx = a.header().user;
                         p = transform_point(p,uc->stroke_transform(*this));
-                        std::cout << "p " << p.x << ", " << p.y << std::endl;
+                        //std::cout << "p " << p.x << ", " << p.y << std::endl;
 
                         nvgBeginPath(vg);
-                        nvgCircle(vg, p.x, p.y, 3);
+                        //nvgCircle(vg, p.x, p.y, 3);
+                        nvgCircle(vg,p.x,p.y,5);
+                        nvgPathWinding(vg, NVG_CCW);
+                        nvgCircle(vg,p.x,p.y,11);
+                        nvgPathWinding(vg, NVG_CW);
+
                         nvgFill(vg);
                     }
                     break;
