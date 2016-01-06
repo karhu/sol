@@ -77,6 +77,8 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
         ));
         m_writer.send_and_reset();
     }
+
+    m_last_cursor_event = event;
 }
 
 void CanvasView::handle_window_event(const sol::WindowEvent &event)
@@ -87,10 +89,12 @@ void CanvasView::handle_window_event(const sol::WindowEvent &event)
 void CanvasView::handle_keyboard_event(const sol::KeyboardEvent &event)
 {
     if (event.key == sol::KeyboardKey::Space) {
-        if (event.is_press())
+        if (event.is_press()) {
             m_transform_mode = true;
-        else
+            m_transform_last = m_last_cursor_event.position;
+        } else {
             m_transform_mode = false;
+        }
     }
 }
 

@@ -42,5 +42,7 @@ private:
 
     bool m_transform_mode = false;
     vec2f m_transform_last;
+
+    sol::CursorEvent m_last_cursor_event;
 };
 
