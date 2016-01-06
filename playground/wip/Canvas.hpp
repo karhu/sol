@@ -63,10 +63,11 @@ public:
     void render(sol::Context &ctx);
 public:
     vec2f dimensions() const;
-private:
+public:
     UserContext* get_user_context(uint16_t idx);
+    UserContext* get_local_user_context();
+private:
     void handle_user_action(action::UserActionRef& action);
-
 private:
     std::unique_ptr<action::BufferingActionSink> m_sink_unconfirmed;
     std::unique_ptr<action::BufferingActionSink> m_sink_confirmed;

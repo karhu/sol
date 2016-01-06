@@ -10,6 +10,10 @@ namespace miro {
     class Canvas;
 }
 
+namespace sol {
+    class RenderContext;
+}
+
 class CanvasView
 {
 public:
@@ -19,6 +23,8 @@ public:
     bool set_canvas(miro::Canvas& canvas);
 public:
     miro::action::IActionSource& get_action_source();
+public:
+    void render(sol::Context& ctx, sol::RenderContext &rctx);
 public:
     void handle_cursor_event(const sol::CursorEvent& event);
     void handle_window_event(const sol::WindowEvent& event);

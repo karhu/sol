@@ -18,6 +18,11 @@
 
 #include "miro/action/ConcurrentActionForwarder.hpp"
 
+#include <GL/gl.h>
+#include "nanovg.h"
+#include "nanovg_gl_utils.h"
+
+
 namespace miro {
 
 class MainWindow : public sol::EventHandler {
@@ -36,6 +41,20 @@ public:
 
     virtual void handle_keyboard_event(const sol::KeyboardEvent &event) override {
         m_canvas_view.handle_keyboard_event(event);
+    }
+
+    void render(sol::Context& ctx, sol::RenderContext& rctx)
+    {
+        rctx.begin_frame(ctx.windows().get_main_window());
+        rctx.bind(sol::RenderTarget::Default);
+
+        // clear the view
+        glClearColor(0.75f,0.75f,0.75f,1.0f);
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
+
+        m_canvas_view.render(ctx, rctx);
+
+        rctx.end_frame();
     }
 
 public:
@@ -76,7 +95,7 @@ int32_t miro::Client::run()
         //std::cout << "events " << count << std::endl;
         incomming_buffer.poll();
         canvas.update(ctx);
-        canvas.render(ctx);
+        main_window.render(ctx,render_context);
         ctx.windows().swap(wh);
     }
     return 0;

@@ -156,13 +156,6 @@ void Canvas::render(sol::Context &ctx)
         return;
     }
 
-    m_render_context.begin_frame(ctx.windows().get_main_window());
-    m_render_context.bind(sol::RenderTarget::Default);
-
-    // clear the view
-    glClearColor(0.75f,0.75f,0.75f,1.0f);
-    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
-
     // draw a rectangle in canvas space
     nvgResetTransform(vg);
     auto f = uc->canvas_transform(*this).data();
@@ -179,9 +172,6 @@ void Canvas::render(sol::Context &ctx)
     nvgTransform(vg, f[0],f[1],f[2],f[3],f[4],f[5]);
     nvgFillPaint(vg, m_render_context.nvg_paint(m_render_target));
     nvgFill(vg);
-
-    m_render_context.end_frame();
-
 }
 
 vec2f Canvas::dimensions() const
@@ -194,6 +184,11 @@ UserContext* Canvas::get_user_context(uint16_t idx)
     //if (idx == 0) return nullptr;
     if (idx >= m_user_contexts.size()) return nullptr;
     return &m_user_contexts[idx];
+}
+
+UserContext *Canvas::get_local_user_context()
+{
+    return get_user_context(m_local_user_idx);
 }
 
 void Canvas::handle_user_action(action::UserActionRef &action)

@@ -2,6 +2,12 @@
 
 #include "Canvas.hpp"
 
+#include "render_context.hpp"
+
+#include <GL/gl.h>
+#include "nanovg.h"
+#include "nanovg_gl_utils.h"
+
 #include "miro/action/connect.hpp"
 #include "miro/action/ActionDefinitions.hpp"
 
@@ -29,6 +35,13 @@ bool CanvasView::set_canvas(miro::Canvas &canvas)
 miro::action::IActionSource &CanvasView::get_action_source()
 {
     return m_writer;
+}
+
+void CanvasView::render(sol::Context &ctx, sol::RenderContext& rctx)
+{
+    auto vg = rctx.impl();
+    m_canvas->render(ctx);
+
 }
 
 void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
