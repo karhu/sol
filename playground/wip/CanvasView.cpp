@@ -59,11 +59,12 @@ void CanvasView::render(sol::Context &ctx, sol::RenderContext& rctx)
         //auto f = uc->canvas_transform(*this).data();
         //nvgTransform(vg, f[0],f[1],f[2],f[3],f[4],f[5]);
         nvgBeginPath(vg);
-        nvgCircle(vg,p.x,p.y,tw.radius_inner);
+        nvgCircle(vg,p.x,p.y,tw.rotation.radius_inner);
         nvgPathWinding(vg, NVG_CCW);
-        nvgCircle(vg,p.x,p.y,tw.radius_outer);
+        nvgCircle(vg,p.x,p.y,tw.rotation.radius_outer);
         nvgPathWinding(vg, NVG_CW);
-        nvgFillColor(vg,nvgRGBA(255,0,0,128));
+        uint8_t alpha = tw.rotation.active || tw.rotation.hovering  ? 192 : 128;
+        nvgFillColor(vg,nvgRGBA(255,0,0,alpha));
         nvgFill(vg);
     }
 }
@@ -82,44 +83,47 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
 
     if (m_transform_mode)
     {
+        auto& tw = m_transform_widget;
+
+        // cursor position relative to the widget center
+        auto d = event.position * uc->m_view_dimensions;
+        d = d - tw.center;
+        auto r2 = dot(d,d);
+        // is the cursor over the rotation ring?
+        tw.rotation.hovering = r2 < tw.rotation.radius_outer*tw.rotation.radius_outer &&
+                               r2 > tw.rotation.radius_inner*tw.rotation.radius_inner;
         if (event.action == Action::Down)
         {
             m_down = true;
             m_transform_last = event.position;
-
-            auto& tw = m_transform_widget;
-            auto d = event.position * uc->m_view_dimensions;
-            d = d - tw.center;
-            auto r2 = dot(d,d);
-            if (r2 < tw.radius_outer*tw.radius_outer &&
-                r2 > tw.radius_inner*tw.radius_inner)
+            if (tw.rotation.hovering)
             {
                 // begin rotation
-                tw.rotation = true;
+                tw.rotation.active = true;
                 float angle = sol::rad2deg(atan2f(d.y,d.x));
-                tw.rotation_start_value = angle;
-                tw.rotation_start_rot = uc->m_canvas_rotation;
-                tw.rotation_start_center = uc->m_canvas_position * uc->m_view_dimensions;
+                tw.rotation.start_value = angle;
+                tw.rotation.canvas_start_rotation = uc->m_canvas_rotation;
+                tw.rotation.canvas_start_position = uc->m_canvas_position * uc->m_view_dimensions;
             }
 
         }
         else if (event.action == Action::Up )
         {
             m_down = false;
-            m_transform_widget.rotation = false;
+            m_transform_widget.rotation.active = false;
         }
         else if (event.action == Action::Move)
         {
             if (!m_down) return;
             auto& tw = m_transform_widget;
-            if (tw.rotation)
+            if (tw.rotation.active)
             {
                 auto p = event.position * uc->m_view_dimensions;
                 auto d = normalized(p - tw.center);
                 float angle = sol::rad2deg(atan2f(d.y,d.x));
-                angle = angle - tw.rotation_start_value;
-                m_canvas_rotation = tw.rotation_start_rot + angle;
-                auto r = tw.rotation_start_center - tw.center;
+                angle = angle - tw.rotation.start_value;
+                m_canvas_rotation = tw.rotation.canvas_start_rotation + angle;
+                auto r = tw.rotation.canvas_start_position - tw.center;
                 r = transform_point(r,T2::Rotation(angle));
                 r = r + tw.center;
                 r = r / uc->m_view_dimensions;

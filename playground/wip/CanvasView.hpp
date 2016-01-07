@@ -56,12 +56,15 @@ private:
         vec2f center;
         bool active = false;
 
-        bool  rotation = false;
-        float radius_inner = 40;
-        float radius_outer = 55;
-        float rotation_start_value;
-        vec2f rotation_start_center;
-        float rotation_start_rot;
+        struct Rotation {
+            bool active = false;
+            bool hovering = false;
+            float start_value;
+            float canvas_start_rotation;
+            vec2f canvas_start_position;
+            float radius_inner = 40;
+            float radius_outer = 55;
+        } rotation;
 
     } m_transform_widget;
 };
