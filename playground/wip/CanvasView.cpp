@@ -11,6 +11,8 @@
 #include "miro/action/connect.hpp"
 #include "miro/action/ActionDefinitions.hpp"
 
+#include "math.hpp"
+
 using T2 = Transform2;
 
 CanvasView::CanvasView(sol::Context& context)
@@ -49,7 +51,7 @@ void CanvasView::render(sol::Context &ctx, sol::RenderContext& rctx)
     if (m_transform_mode) {
         auto& tw = m_transform_widget;
         T2 t =
-            T2::Scale(vec2f{1,-1}*uc->m_view_dimensions) *
+            T2::Scale(vec2f{1,-1}) *
             T2::Translation(vec2f{0,1}*uc->m_view_dimensions);
         auto p = transform_point(tw.center,t);
         // draw a rectangle in canvas space
@@ -76,17 +78,59 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
     if (!m_canvas) return;
     m_last_cursor_event = event;
 
-    if (m_transform_mode) {
-        if (event.action == Action::Down) {
+    auto uc = m_canvas->get_local_user_context();
+
+    if (m_transform_mode)
+    {
+        if (event.action == Action::Down)
+        {
             m_down = true;
             m_transform_last = event.position;
-        } else if (event.action == Action::Up ) {
+
+            auto& tw = m_transform_widget;
+            auto d = event.position * uc->m_view_dimensions;
+            d = d - tw.center;
+            auto r2 = dot(d,d);
+            if (r2 < tw.radius_outer*tw.radius_outer &&
+                r2 > tw.radius_inner*tw.radius_inner)
+            {
+                // begin rotation
+                tw.rotation = true;
+                float angle = sol::rad2deg(atan2f(d.y,d.x));
+                tw.rotation_start_value = angle;
+                tw.rotation_start_rot = uc->m_canvas_rotation;
+                tw.rotation_start_center = uc->m_canvas_position * uc->m_view_dimensions;
+            }
+
+        }
+        else if (event.action == Action::Up )
+        {
             m_down = false;
-        } else if (event.action == Action::Move) {
+            m_transform_widget.rotation = false;
+        }
+        else if (event.action == Action::Move)
+        {
             if (!m_down) return;
-            auto delta = event.position - m_transform_last;
-            m_transform_last = event.position;
-            m_canvas_position = m_canvas_position + delta;
+            auto& tw = m_transform_widget;
+            if (tw.rotation)
+            {
+                auto p = event.position * uc->m_view_dimensions;
+                auto d = normalized(p - tw.center);
+                float angle = sol::rad2deg(atan2f(d.y,d.x));
+                angle = angle - tw.rotation_start_value;
+                m_canvas_rotation = tw.rotation_start_rot + angle;
+                auto r = tw.rotation_start_center - tw.center;
+                r = transform_point(r,T2::Rotation(angle));
+                r = r + tw.center;
+                r = r / uc->m_view_dimensions;
+                m_canvas_position = r;
+            }
+            else
+            {
+                auto delta = event.position - m_transform_last;
+                m_transform_last = event.position;
+                m_canvas_position = m_canvas_position + delta;
+            }
             m_view_dirty = true;
             assert_view_clean(true);
         }
@@ -122,12 +166,14 @@ void CanvasView::handle_window_event(const sol::WindowEvent &event)
 
 void CanvasView::handle_keyboard_event(const sol::KeyboardEvent &event)
 {
+    auto uc = m_canvas->get_local_user_context();
+
     if (event.key == sol::KeyboardKey::Space) {
         if (event.is_press()) {
             if (!m_transform_widget.active) {
                 m_transform_mode = true;
                 m_transform_last = m_last_cursor_event.position;
-                m_transform_widget.center = m_transform_last;
+                m_transform_widget.center = m_transform_last*uc->m_view_dimensions;
                 m_transform_widget.active = true;
             }
         } else {

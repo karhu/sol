@@ -42,7 +42,7 @@ private:
     bool m_view_dirty = true;
     sol::Context& m_context;
 
-    vec2f m_canvas_position = {0.4,0.4};
+    vec2f m_canvas_position = {0.5,0.5};
     float m_canvas_rotation = 0.0f;
     float m_canvas_scale = 1.0f;
 
@@ -56,8 +56,12 @@ private:
         vec2f center;
         bool active = false;
 
-        float radius_inner = 35;
-        float radius_outer = 45;
+        bool  rotation = false;
+        float radius_inner = 40;
+        float radius_outer = 55;
+        float rotation_start_value;
+        vec2f rotation_start_center;
+        float rotation_start_rot;
 
     } m_transform_widget;
 };

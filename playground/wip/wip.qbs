@@ -25,6 +25,7 @@ CppApplication {
         "main.cpp",
         "context.hpp",
         "context.cpp",
+        "math.hpp",
         "memory.hpp",
         "memory/AAllocator.cpp",
         "memory/AAllocator.hpp",

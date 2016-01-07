@@ -23,7 +23,8 @@ public:
     inline vec2 operator+(const vec2& rhs) const {
         return vec2(x+rhs.x,y+rhs.y);
     }
-    inline vec2 operator/(const vec2& rhs) const {
+    template<typename S>
+    inline vec2 operator/(const vec2<S>& rhs) const {
         return vec2(x/rhs.x,y/rhs.y);
     }
     inline vec2 operator/(T rhs) const {
@@ -59,41 +60,18 @@ struct BoundingBox2f {
     }
 };
 
-struct Transform2f {
-    vec2f translation = {0,0};
-    vec2f scale = {1,1};
-    float rotation = 0; // radians, clockwise
-};
-
-inline vec2f transform_point(const Transform2f& t, const vec2f& p) {
-    float ca = cos(t.rotation);
-    float sa = sin(t.rotation);
-
-    vec2f rot{
-         ca*p.x - sa*p.y,
-         sa*p.x + ca*p.y
-    };
-
-    return (rot * t.scale) + t.translation;
+template<typename T, typename Q>
+inline auto dot(const vec2<T>& a, const vec2<Q>& b) {
+    return a.x*b.x + a.y*b.y;
 }
 
-inline Transform2f inverse(const Transform2f& t) {
-    Transform2f it;
-    it.scale = vec2f{1.0,1.0}/t.scale;
-    it.rotation = - t.rotation;
-
-    float ca = cos(it.rotation);
-    float sa = sin(it.rotation);
-
-    vec2f itranslation{
-        ca*t.translation.x - sa*t.translation.y,
-        sa*t.translation.x + ca*t.translation.y
-    };
-
-    it.translation = itranslation * -it.scale;
-    return it;
+template<typename T>
+inline auto length(const vec2<T>& v) {
+    return sqrtf(dot(v,v));
 }
 
-
+inline auto normalized(const vec2f v) {
+    return v / length(v);
+}
 
 
