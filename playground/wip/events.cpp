@@ -137,6 +137,7 @@ namespace sol {
                 ce.type = CursorEvent::Type::Mouse;
                 ce.action = CursorEvent::Action::Move;
                 ce.button = 0;
+                ce.pressure = 1.0f;
                 for (auto eh : m_handlers) { eh->handle_cursor_event(ce); }
                 break;
             }
@@ -158,6 +159,7 @@ namespace sol {
                             CursorEvent::Action::Down :
                             CursorEvent::Action::Up;
                 ce.button = ew.button; // 1,2,3
+                ce.pressure = 1.0f;
                 // ew.clicks
                 for (auto eh : m_handlers) { eh->handle_cursor_event(ce); }
                 break;

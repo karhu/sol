@@ -61,7 +61,7 @@ void Canvas::update(sol::Context& ctx)
     // render unconfirmed
 
     // render confirmed
-    nvgFillColor(vg, nvgRGBA(0,0,255,64));
+
     m_sink_confirmed->handle_actions([this,vg](action::ActionRange range){
         for (uint16_t i=0; i < range.count(); i++) {
             auto ar = range.get(i);
@@ -72,17 +72,18 @@ void Canvas::update(sol::Context& ctx)
                     auto uc = get_user_context(a.header().user);
                     if (uc != nullptr) {
                         auto p = a.position();
+                        auto pressure = a.pressure();
 
                         auto idx = a.header().user;
                         p = transform_point(p,uc->stroke_transform(*this));
                         //std::cout << "p " << p.x << ", " << p.y << std::endl;
 
+                        auto c = uc->m_color;
+                        nvgFillColor(vg, nvgRGBA(c.r*255,c.g*255,c.b*255,c.a*255*pressure));
                         nvgBeginPath(vg);
                         //nvgCircle(vg, p.x, p.y, 3);
-                        nvgCircle(vg,p.x,p.y,5);
-                        nvgPathWinding(vg, NVG_CCW);
-                        nvgCircle(vg,p.x,p.y,11);
-                        nvgPathWinding(vg, NVG_CW);
+                        nvgCircle(vg,p.x,p.y,10.0f*pressure);
+                        nvgPathWinding(vg, NVG_SOLID);
 
                         nvgFill(vg);
                     }

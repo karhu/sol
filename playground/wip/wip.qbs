@@ -16,6 +16,8 @@ CppApplication {
         "Transform2.hpp",
         "capnp/test.capnp.c++",
         "capnp/test.capnp.h",
+        "color.cpp",
+        "color.hpp",
         "common.hpp",
         "core.hpp",
         "delegate.hpp",

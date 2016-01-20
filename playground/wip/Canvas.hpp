@@ -8,6 +8,7 @@
 #include "render_context.hpp"
 
 #include "Transform2.hpp"
+#include "color.hpp"
 
 #include "miro/action/ActionRange.hpp"
 #include "miro/action/IActionSink.hpp"
@@ -28,6 +29,9 @@ struct UserContext
     float   m_canvas_rotation = 0;
     float   m_canvas_scale = 1;
     vec2u16 m_view_dimensions = {100,100};
+
+    sol::color::RGBA m_color = {0,1,1,0.5f};
+
 
     std::string m_alias;        // name chosen by the user
     uint16_t    m_id;           // automatically assigned id
