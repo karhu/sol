@@ -111,6 +111,15 @@ void Canvas::update(sol::Context& ctx)
                     handle_user_action(a);
                     break;
                 }
+                case AT::Color:
+                {
+                    auto a = ar.data<action::ColorActionRef>();
+                    auto uc = get_user_context(a.header().user);
+                    if (uc != nullptr) {
+                        uc->m_color = a.color();
+                    }
+                    break;
+                }
                 default:
                     std::cout << "unhandled action type" << std::endl;
             }

@@ -7,6 +7,7 @@ namespace miro { namespace action {
         Stroke,         // draw a stroke
         Viewport,       // change viewport transform
         User,           // user update
+        Color,
         Message,
     };
 

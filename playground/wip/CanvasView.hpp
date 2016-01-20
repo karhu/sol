@@ -29,9 +29,9 @@ private:
     void update_color(sol::color::HSVA color, bool notify = false);
 private:
     vec2f m_center = {200,200};
-    sol::color::RGBA m_color = {0,0,0,1};
-    float m_radius_outer = 73.0f;
-    float m_radius_inner = 55.0f;
+    sol::color::HSVA m_color = {0,1,1,1};
+    float m_radius_outer = 76.0f;
+    float m_radius_inner = 58.0f;
     float m_radius_triangle = 50.0f;
     bool m_active = false;
     std::function<void(sol::color::RGBA)> m_color_change_cb;

@@ -39,6 +39,11 @@ public:
     }
 };
 
+template<typename T>
+inline vec2<T> operator*(const T& lhs, const vec2<T>& rhs) {
+    return rhs * lhs;
+}
+
 using vec2f = vec2<float>;
 using vec2u32 = vec2<uint32_t>;
 using vec2u16 = vec2<uint16_t>;

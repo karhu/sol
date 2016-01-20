@@ -14,8 +14,6 @@ CppApplication {
         "NetworkConnection.hpp",
         "Transform2.cpp",
         "Transform2.hpp",
-        "capnp/test.capnp.c++",
-        "capnp/test.capnp.h",
         "color.cpp",
         "color.hpp",
         "common.hpp",

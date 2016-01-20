@@ -18,10 +18,16 @@ using T2 = Transform2;
 CanvasView::CanvasView(sol::Context& context)
     : m_context(context)
 {
-    m_color_wheel_widget.set_color_change_cb([this](sol::color::RGBA color) {
-        if (m_canvas) {
-            m_canvas->get_local_user_context()->m_color = color;
-        }
+    m_color_wheel_widget.set_color_change_cb([this](sol::color::RGBA color)
+    {
+        using Action = sol::CursorEvent::Action;
+        using namespace miro::action;
+
+        assert_write_ok(write_color_action(
+            m_writer.buffer(),HeaderMeta(0),
+            color
+        ));
+        m_writer.send_and_reset();
     });
 }
 
@@ -35,8 +41,6 @@ bool CanvasView::set_canvas(miro::Canvas &canvas)
     }
     m_canvas = &canvas;
     miro::action::connect(get_action_source(), m_canvas->sink_unconfirmed());
-
-
 
     return true;
 }
@@ -272,7 +276,7 @@ void ColorWheel::render(sol::Context &ctx, sol::RenderContext& rctx)
     NVGcontext* vg = rctx.impl();
     auto& center = m_center;
 
-    auto hsv = sol::color::rgba2hsva(m_color);
+    auto hsv = m_color;
     float hue = (float)hsv.h;
 
     nvgSave(vg);
@@ -330,6 +334,32 @@ void ColorWheel::render(sol::Context &ctx, sol::RenderContext& rctx)
     nvgStrokeColor(vg, nvgRGBA(0,0,0,64));
     nvgStroke(vg);
 
+    // select circle on triangle
+    auto rot = Transform2::Rotation(120);
+    auto pt_c = vec2f(1,0) * m_radius_triangle;
+    auto pt_w = transform_point(pt_c,rot);
+    auto pt_b = transform_point(pt_w,rot);
+    float u = 1.0f - m_color.s;
+    float v = 1.0f - m_color.v;
+    float w = 1.0f - u - v;
+    auto cp = u*pt_w + v*pt_b + w*pt_c;
+
+    ax = cp.x;
+    ay = cp.y;
+    nvgStrokeWidth(vg, 2.0f);
+    nvgBeginPath(vg);
+    nvgCircle(vg, ax,ay,5);
+    nvgStrokeColor(vg, nvgRGBA(255,255,255,192));
+    nvgStroke(vg);
+
+    paint = nvgRadialGradient(vg, ax,ay, 7,9, nvgRGBA(0,0,0,64), nvgRGBA(0,0,0,0));
+    nvgBeginPath(vg);
+    nvgRect(vg, ax-20,ay-20,40,40);
+    nvgCircle(vg, ax,ay,7);
+    nvgPathWinding(vg, NVG_HOLE);
+    nvgFillPaint(vg, paint);
+    nvgFill(vg);
+
     nvgRestore(vg);
 }
 
@@ -340,30 +370,70 @@ bool ColorWheel::handle_cursor(const sol::CursorEvent &event)
     auto d = event.position - m_center;
     auto r2 = dot(d,d);
 
-    float angle = sol::rad2deg(atan2f(-d.y,-d.x)) + 180.0f;
-    auto color = sol::color::rgba2hsva(m_color);
-    color.h = angle / 360.0f;
+    float angle = sol::rad2deg(atan2f(-d.y,-d.x)) ;
+    auto color = m_color;
+    float hue = (angle+180.0f) / 360.0f;
 
-    std::cout << d.x << " / " << d.y  << " / " << color.h << std::endl;
+    //auto tst = vec2f(cos(sol::deg2rad(color.h*360)),sin(sol::deg2rad(color.h*360)));
+    //std::cout << tst.x << " / " << tst.y << std::endl;
+
+    auto rot = Transform2::Rotation(120);
+    auto pt_color = vec2f(cos(sol::deg2rad(color.h*360)),sin(sol::deg2rad(color.h*360))) * m_radius_triangle;
+    auto pt_white = transform_point(pt_color,rot);
+    auto pt_black = transform_point(pt_white,rot);
+    auto bc = sol::barycentric_coordinates(pt_color,pt_white,pt_black,d);
+    auto bcw = 1.0f - bc.x - bc.y;
+    bool inside_triangle = bc.x >= 0.0f &&
+                           bc.y >= 0.0f &&
+                           bcw  >= 0.0f;
+
+    float sat = 1.0f - sol::clamp(bc.x,0.0f,1.0f);
+    float val = 1.0f - sol::clamp(bc.y,0.0f,1.0f);
+
+    std::cout << pt_white.x << " / " << pt_white.y << std::endl;
 
     switch (event.action)
     {
     case CA::Down: {
         auto ro2 = m_radius_outer*m_radius_outer;
         auto ri2 = m_radius_inner*m_radius_inner;
+        auto rt2 = m_radius_triangle*m_radius_triangle;
         if (r2 <= ro2 && r2 >= ri2) {
             m_interaction = Interaction::Wheel;
+            color.h = hue;
             update_color(color);
+        }
+        if (r2 <= rt2) {
+            if (inside_triangle) {
+                m_interaction = Interaction::Triangle;
+                color.s = sat;
+                color.v = val;
+                update_color(color, true);
+            }
         }
         break;
     }
     case CA::Move:
         if (m_interaction == Interaction::Wheel) {
+            color.h = hue;
             update_color(color);
+        }
+        if (m_interaction == Interaction::Triangle) {
+            color.s = sat;
+            color.v = val;
+            update_color(color);
+
+            std::cout << color.h << "/" << color.s << "/" << color.v << std::endl;
         }
         break;
     case CA::Up:
         if (m_interaction == Interaction::Wheel) {
+            color.h = hue;
+            update_color(color, true);
+        }
+        if (m_interaction == Interaction::Triangle) {
+            color.s = sat;
+            color.v = val;
             update_color(color, true);
         }
         m_interaction = Interaction::None;
@@ -374,13 +444,17 @@ bool ColorWheel::handle_cursor(const sol::CursorEvent &event)
 void ColorWheel::activate(vec2f center, sol::color::RGBA color)
 {
     m_center = center;
-    m_color = color;
+    m_color = sol::color::rgba2hsva(color);
     m_active = true;
 }
 
 void ColorWheel::deactivate()
 {
     m_active = false;
+    if (m_interaction == Interaction::Wheel || m_interaction == Interaction::Triangle) {
+        update_color(m_color, true);
+    }
+    m_interaction = Interaction::None;
 }
 
 bool ColorWheel::active()
@@ -390,9 +464,9 @@ bool ColorWheel::active()
 
 void ColorWheel::update_color(sol::color::HSVA color, bool notify)
 {
-    m_color = sol::color::hsva2rgba(color);
+    m_color = color;
     if (notify && m_color_change_cb) {
-        m_color_change_cb(m_color);
+        m_color_change_cb(sol::color::hsva2rgba(m_color));
     }
     // TODO notify
 }

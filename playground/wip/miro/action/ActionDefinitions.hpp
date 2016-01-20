@@ -2,6 +2,7 @@
 
 #include "vec2.hpp"
 #include "Transform2.hpp"
+#include "color.hpp"
 
 #include "ActionReference.hpp"
 #include "ActionBuffer.hpp"
@@ -165,6 +166,55 @@ namespace miro { namespace action {
         float rotation() const { return data().rotation; }
         float scale() const { return data().scale; }
         vec2u16 viewport_dim() const { return data().viewport_dim; }
+    };
+
+    // Color Action //
+
+    struct ColorActionData {
+    public:
+        static constexpr ActionType Type = ActionType::Color;
+    public:
+        uint8_t r,g,b,a;
+    };
+
+    inline bool write_color_action(ActionBuffer& b, HeaderMeta hm,
+        const sol::color::RGBA color)
+    {
+        using DT = ColorActionData;
+
+        // get the memory
+        size_t data_size = sizeof(DT);
+        auto w = b.begin_action(data_size);
+        if (!w.valid()) return false;
+
+        // write the data
+        auto data = w.emplace<DT>();
+        if (data == nullptr) return false;
+        // convert from float [0,1] to uint8_t
+        data->r = color.r*255;
+        data->g = color.g*255;
+        data->b = color.b*255;
+        data->a = color.a*255;
+
+        // write the header
+        b.end_action<DT>(w,hm);
+
+        return true;
+    }
+
+    struct ColorActionRef : public ActionReference<ColorActionData>
+    {
+        ColorActionRef() {}
+        ColorActionRef(ActionBuffer& b, uint16_t ai) : ActionReference(b,ai) {}
+
+        sol::color::RGBA color() const {
+            return {
+                (float)data().r/255,
+                (float)data().g/255,
+                (float)data().b/255,
+                (float)data().a/255,
+            };
+        }
     };
 
     // Message Action //
