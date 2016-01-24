@@ -172,16 +172,17 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
         copy.position = copy.position * m_context.windows().get_window_dimensions(wh);
         m_color_wheel_widget.handle_cursor(copy);
     } else {
-        uint8_t type = 0;
+        using Kind = StrokeActionRef::Kind;
+        Kind kind = Kind::Update;
         if (event.action == Action::Down) {
             m_down = true;
-            type = 2;
+            kind = Kind::Begin;
         } else if (event.action == Action::Up ) {
             m_down = false;
-            type = 1;
+            kind = Kind::End;
         } else if (event.action == Action::Move) {
             if (!m_down) return;
-            type = 0;
+            kind = Kind::Update;
         }
 
         assert_view_clean();
@@ -190,7 +191,7 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
             m_writer.buffer(),HeaderMeta(0),
             event.position,
             event.pressure,
-            1, type
+            1, kind
         ));
         m_writer.send_and_reset();
     }
@@ -199,6 +200,7 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
 void CanvasView::handle_window_event(const sol::WindowEvent &event)
 {
     dirty_view();
+    assert_view_clean();
 }
 
 void CanvasView::handle_keyboard_event(const sol::KeyboardEvent &event)

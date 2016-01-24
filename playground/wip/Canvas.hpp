@@ -13,6 +13,8 @@
 #include "miro/action/ActionRange.hpp"
 #include "miro/action/IActionSink.hpp"
 
+#include "Stroke.hpp"
+
 namespace miro {
 
 namespace action {
@@ -31,7 +33,6 @@ struct UserContext
     vec2u16 m_view_dimensions = {100,100};
 
     sol::color::RGBA m_color = {0,1,1,0.5f};
-
 
     std::string m_alias;        // name chosen by the user
     uint16_t    m_id;           // automatically assigned id
@@ -70,6 +71,8 @@ public:
 public:
     UserContext* get_user_context(uint16_t idx);
     UserContext* get_local_user_context();
+
+    bool is_local_user_context(UserContext* uc) const;
 private:
     void handle_user_action(action::UserActionRef& action);
 private:
@@ -77,12 +80,14 @@ private:
     std::unique_ptr<action::BufferingActionSink> m_sink_confirmed;
 
     std::vector<UserContext> m_user_contexts;
+    UserContext m_local_user_context;
     uint16_t m_local_user_idx = 0;
 
     sol::RenderContext& m_render_context;
     sol::RenderTarget m_render_target;
 
     Transform2 m_transform_winr_canvasa; // transform from relative window coordinates to absolute canvas ones
+    miro::StrokeCollection m_strokes;
 };
 
 }

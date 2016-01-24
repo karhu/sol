@@ -15,28 +15,37 @@ namespace miro { namespace action {
     public:
         static constexpr ActionType Type = ActionType::Stroke;
     public:
-        vec2f position;   // position in the current view frame
-        float pressure;   // pressure in [0,1]
-        uint8_t button;   // a button, finger, tip id
-        uint8_t type = 0; // 0 for update, 1 for begin, 2 for end
+        enum class Kind : uint8_t {
+            Update = 0,
+            Begin,
+            End,
+        };
+
+    public:
+        vec2f position;            // position in the current view frame
+        float pressure;            // pressure in [0,1]
+        uint8_t button;            // a button, finger, tip id
+        Kind  kind = Kind::Update; // what kind of stroke information is it?
     };
 
     struct StrokeActionRef : public ActionReference<StrokeActionData>
     {
+        using Kind = StrokeActionData::Kind;
+
         StrokeActionRef() {}
         StrokeActionRef(ActionBuffer& b, uint16_t ai) : ActionReference(b,ai) {}
 
         vec2f position() { return data().position; }
         float  pressure() { return data().pressure; }
         uint8_t button() { return data().button; }
-        uint8_t type() { return data().type; }
+        Kind kind() { return data().kind; }
     };
 
     inline bool write_stroke_action(ActionBuffer& b, HeaderMeta hm,
             vec2f position,
             float pressure,
             uint8_t button,
-            uint8_t type = 0)
+            StrokeActionRef::Kind kind = StrokeActionRef::Kind::Update)
     {
         // get the memory
         size_t data_size = sizeof(StrokeActionData);
@@ -49,7 +58,7 @@ namespace miro { namespace action {
         data->position = position;
         data->pressure = pressure;
         data->button = button;
-        data->type = type;
+        data->kind = kind;
 
         // write the header
         b.end_action<StrokeActionData>(w,hm);

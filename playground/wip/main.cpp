@@ -21,11 +21,11 @@ void action_test() {
 
     ActionBuffer b;
     bool ok;
-    ok = write_stroke_action(b,HeaderMeta(),vec2f(1,1),1.0f,0,0);
+    ok = write_stroke_action(b,HeaderMeta(),vec2f(1,1),1.0f,0);
     if (!ok) std::cout << "<<error>> write_stroke_action 1" << std::endl;
     ok = write_message_action(b,HeaderMeta(),"Hello World!",42);
     if (!ok) std::cout << "<<error>> write_message_action 42" << std::endl;
-    ok = write_stroke_action(b,HeaderMeta(),vec2f(2,2),2.0f,0,0);
+    ok = write_stroke_action(b,HeaderMeta(),vec2f(2,2),2.0f,0);
     if (!ok) std::cout << "<<error>> write_stroke_action 2" << std::endl;
 
     StrokeActionRef sa1(b,0);
