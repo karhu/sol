@@ -23,11 +23,18 @@ Canvas::Canvas(sol::RenderContext& rctx, uint32_t width, uint32_t height)
 {
     m_sink_confirmed.reset(new action::BufferingActionSink()); // TODO change this later
     m_sink_unconfirmed.reset(new action::BufferingActionSink());
-    m_render_target = m_render_context.create_render_target(width,height);
 
+    m_render_target = m_render_context.create_render_target(width,height);
     m_render_context.begin_frame(m_render_target);
     m_render_context.bind(m_render_target);
     glClearColor(1.0f,1.0f,1.0f,1.0f);
+    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
+    m_render_context.end_frame();
+
+    m_render_target_tmp = m_render_context.create_render_target(width,height);
+    m_render_context.begin_frame(m_render_target_tmp);
+    m_render_context.bind(m_render_target_tmp);
+    glClearColor(0.0f,0.0f,0.0f,0.0f);
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
     m_render_context.end_frame();
 }
@@ -56,6 +63,7 @@ void Canvas::update(sol::Context& ctx)
     // handle unconfirmed actions
     m_sink_unconfirmed->handle_actions([this,vg](action::ActionRange range)
     {
+        auto uc = get_local_user_context();
         for (uint16_t i=0; i < range.count(); i++)
         {
             auto ar = range.get(i);
@@ -65,9 +73,8 @@ void Canvas::update(sol::Context& ctx)
                 {
                     using Kind = action::StrokeActionRef::Kind;
                     auto a = ar.data<action::StrokeActionRef>();
-                    auto uc = get_user_context(a.header().user);
-                    auto idx = a.header().user;
 
+                    auto idx = a.header().user;
                     auto p = a.position();
                     p = transform_point(p,uc->stroke_transform(*this));
                     auto pressure = a.pressure();
@@ -92,7 +99,6 @@ void Canvas::update(sol::Context& ctx)
                 case AT::Viewport:
                 {
                     auto a = ar.data<action::ViewportActionRef>();
-                    auto uc = get_user_context(a.header().user);
                     if (uc != nullptr) {
                         uc->update_transform(*this,a);
                         //uc->m_stroke_transform = a.transform();
@@ -114,7 +120,6 @@ void Canvas::update(sol::Context& ctx)
                 case AT::Color:
                 {
                     auto a = ar.data<action::ColorActionRef>();
-                    auto uc = get_user_context(a.header().user);
                     if (uc != nullptr) {
                         uc->m_color = a.color();
                     }
@@ -230,7 +235,7 @@ void Canvas::render(sol::Context &ctx)
     auto vg = m_render_context.impl();
     const vec2f fb_dim = (vec2f)m_render_target.dimensions();
 
-    auto uc = get_user_context(m_local_user_idx);
+    auto uc = get_local_user_context();
     if (!uc) {
         std::cout << "no user context" << std::endl;
         return;
@@ -252,6 +257,23 @@ void Canvas::render(sol::Context &ctx)
     nvgTransform(vg, f[0],f[1],f[2],f[3],f[4],f[5]);
     nvgFillPaint(vg, m_render_context.nvg_paint(m_render_target));
     nvgFill(vg);
+
+    // temporary
+#if 0
+    // draw a rectangle in canvas space
+    nvgResetTransform(vg);
+    f = uc->canvas_transform(*this).data();
+    nvgTransform(vg, f[0],f[1],f[2],f[3],f[4],f[5]);
+    nvgBeginPath(vg);
+    nvgRect(vg, 0, 0, 1, 1);
+
+    // fill it with the canvas texture
+    nvgResetTransform(vg);
+    f = t2.data();
+    nvgTransform(vg, f[0],f[1],f[2],f[3],f[4],f[5]);
+    nvgFillPaint(vg, m_render_context.nvg_paint(m_render_target_tmp));
+    nvgFill(vg);
+#endif
 }
 
 vec2f Canvas::dimensions() const
@@ -268,25 +290,33 @@ UserContext* Canvas::get_user_context(uint16_t idx)
 
 UserContext *Canvas::get_local_user_context()
 {
-    return get_user_context(m_local_user_idx);
+    return &m_local_user_context;
 }
 
 bool Canvas::is_local_user_context(UserContext *uc) const
 {
-    return uc->m_id == m_local_user_idx;
+    return uc == &m_local_user_context;
 }
 
 void Canvas::handle_user_action(action::UserActionRef &action)
 {
     auto idx = action.idx();
-    if (idx >= m_user_contexts.size()) m_user_contexts.resize(idx+1);
-    m_user_contexts[idx] = UserContext{};
-    m_user_contexts[idx].m_alias = std::string(action.alias().ptr(),action.alias().size());
-    m_user_contexts[idx].m_id = idx;
 
     if ((int)action.flags() & (int)action::UserActionRef::Flag::Local) {
         m_local_user_idx = idx;
+        m_local_user_context.m_id = idx;
     }
+    if (idx >= m_user_contexts.size()) m_user_contexts.resize(idx+1);
+
+    auto uc = get_user_context(idx);
+
+    if (!is_local_user_context(uc)) {
+        *uc = UserContext{};
+        get_local_user_context()->need_send = true;
+    }
+    uc->m_alias = std::string(action.alias().ptr(),action.alias().size());
+    uc->m_id = idx;
+
 }
 
 void UserContext::update_transform(const Canvas& canvas, action::ViewportActionRef &action)

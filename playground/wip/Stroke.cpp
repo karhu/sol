@@ -20,7 +20,7 @@ void StrokeCollection::add_point(uint16_t user_idx, StrokePoint point)
 
 void StrokeCollection::assert_user_idx(uint16_t user_idx)
 {
-    if (m_strokes.size() <= user_idx+1)
+    if (m_strokes.size() <= user_idx)
         m_strokes.resize(user_idx+1);
 }
 

@@ -37,6 +37,8 @@ struct UserContext
     std::string m_alias;        // name chosen by the user
     uint16_t    m_id;           // automatically assigned id
 
+    bool need_send = false; // ugly workaround for now
+
 public:
     void update_transform(const Canvas &canvas, action::ViewportActionRef& action);
     const Transform2& stroke_transform(const Canvas& canvas);
@@ -85,6 +87,7 @@ private:
 
     sol::RenderContext& m_render_context;
     sol::RenderTarget m_render_target;
+    sol::RenderTarget m_render_target_tmp;
 
     Transform2 m_transform_winr_canvasa; // transform from relative window coordinates to absolute canvas ones
     miro::StrokeCollection m_strokes;

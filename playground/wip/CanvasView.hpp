@@ -63,9 +63,10 @@ public:
     void handle_cursor_event(const sol::CursorEvent& event);
     void handle_window_event(const sol::WindowEvent& event);
     void handle_keyboard_event(const sol::KeyboardEvent& event);
-protected:
+public:
     void dirty_view();
     void assert_view_clean(bool send = false);
+protected:
     void assert_write_ok(bool written);
 private:
     miro::action::ActionWriter m_writer;

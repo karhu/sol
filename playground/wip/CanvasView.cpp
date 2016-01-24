@@ -100,8 +100,6 @@ void CanvasView::handle_cursor_event(const sol::CursorEvent &event)
     using Action = sol::CursorEvent::Action;
     using namespace miro::action;
 
-    //std::cout << "ce: " << event.position.x << " / " << event.position.y << std::endl;
-
     if (!m_canvas) return;
     m_last_cursor_event = event;
 
@@ -247,8 +245,10 @@ void CanvasView::assert_view_clean(bool send)
 {
     using T2 = Transform2;
 
+    auto uc = m_canvas->get_local_user_context();
+
     using namespace miro::action;
-    if (m_view_dirty)
+    if (m_view_dirty || uc->need_send)
     {
         // update transform
         auto& windows = m_context.windows();
@@ -264,6 +264,7 @@ void CanvasView::assert_view_clean(bool send)
         ));
 
         m_view_dirty = false;
+        uc->need_send = false;
     }
     if (send) m_writer.send_and_reset();
 }
@@ -379,9 +380,6 @@ bool ColorWheel::handle_cursor(const sol::CursorEvent &event)
     auto color = m_color;
     float hue = (angle+180.0f) / 360.0f;
 
-    //auto tst = vec2f(cos(sol::deg2rad(color.h*360)),sin(sol::deg2rad(color.h*360)));
-    //std::cout << tst.x << " / " << tst.y << std::endl;
-
     auto rot = Transform2::Rotation(120);
     auto pt_color = vec2f(cos(sol::deg2rad(color.h*360)),sin(sol::deg2rad(color.h*360))) * m_radius_triangle;
     auto pt_white = transform_point(pt_color,rot);
@@ -394,8 +392,6 @@ bool ColorWheel::handle_cursor(const sol::CursorEvent &event)
 
     float sat = 1.0f - sol::clamp(bc.x,0.0f,1.0f);
     float val = 1.0f - sol::clamp(bc.y,0.0f,1.0f);
-
-    std::cout << pt_white.x << " / " << pt_white.y << std::endl;
 
     switch (event.action)
     {
@@ -427,8 +423,6 @@ bool ColorWheel::handle_cursor(const sol::CursorEvent &event)
             color.s = sat;
             color.v = val;
             update_color(color);
-
-            std::cout << color.h << "/" << color.s << "/" << color.v << std::endl;
         }
         break;
     case CA::Up:
