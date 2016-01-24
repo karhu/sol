@@ -42,6 +42,9 @@ bool CanvasView::set_canvas(miro::Canvas &canvas)
     m_canvas = &canvas;
     miro::action::connect(get_action_source(), m_canvas->sink_unconfirmed());
 
+    dirty_view();
+    assert_view_clean(true);
+
     return true;
 }
 

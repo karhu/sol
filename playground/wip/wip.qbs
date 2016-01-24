@@ -12,6 +12,8 @@ CppApplication {
         "CanvasView.hpp",
         "NetworkConnection.cpp",
         "NetworkConnection.hpp",
+        "Stroke.cpp",
+        "Stroke.hpp",
         "Transform2.cpp",
         "Transform2.hpp",
         "color.cpp",
