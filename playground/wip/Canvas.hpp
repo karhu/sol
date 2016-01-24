@@ -68,6 +68,7 @@ public:
 public:
     void update(sol::Context &ctx);
     void render(sol::Context &ctx);
+    void update_strokes();
 public:
     vec2f dimensions() const;
 public:

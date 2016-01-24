@@ -31,6 +31,7 @@ Canvas::Canvas(sol::RenderContext& rctx, uint32_t width, uint32_t height)
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
     m_render_context.end_frame();
 
+    // overlay rendertarget for temporary drawing
     m_render_target_tmp = m_render_context.create_render_target(width,height);
     m_render_context.begin_frame(m_render_target_tmp);
     m_render_context.bind(m_render_target_tmp);
@@ -74,7 +75,7 @@ void Canvas::update(sol::Context& ctx)
                     using Kind = action::StrokeActionRef::Kind;
                     auto a = ar.data<action::StrokeActionRef>();
 
-                    auto idx = a.header().user;
+                    auto idx = m_local_user_idx;
                     auto p = a.position();
                     p = transform_point(p,uc->stroke_transform(*this));
                     auto pressure = a.pressure();
@@ -88,6 +89,7 @@ void Canvas::update(sol::Context& ctx)
                         else if (a.kind() == Kind::Begin)
                         {
                             m_strokes.begin_stroke(idx,false,StrokeProperties{uc->m_color});
+                            m_strokes.add_point(idx,StrokePoint{p,pressure});
                         }
                         else if (a.kind() == Kind::End)
                         {
@@ -166,6 +168,7 @@ void Canvas::update(sol::Context& ctx)
                             else if (a.kind() == Kind::Begin)
                             {
                                 m_strokes.begin_stroke(idx,true,StrokeProperties{uc->m_color});
+                                m_strokes.add_point(idx,StrokePoint{p,pressure});
                             }
                             else if (a.kind() == Kind::End)
                             {
@@ -173,7 +176,7 @@ void Canvas::update(sol::Context& ctx)
                             }
                         }
 
-
+#if 0
                         auto c = uc->m_color;
                         nvgFillColor(vg, nvgRGBA(c.r*255,c.g*255,c.b*255,c.a*255*pressure));
                         nvgBeginPath(vg);
@@ -182,6 +185,7 @@ void Canvas::update(sol::Context& ctx)
                         nvgPathWinding(vg, NVG_SOLID);
 
                         nvgFill(vg);
+#endif
                     }
                     break;
                 }
@@ -228,6 +232,7 @@ void Canvas::update(sol::Context& ctx)
 
     m_render_context.end_frame();
 
+    update_strokes();
 }
 
 void Canvas::render(sol::Context &ctx)
@@ -258,8 +263,7 @@ void Canvas::render(sol::Context &ctx)
     nvgFillPaint(vg, m_render_context.nvg_paint(m_render_target));
     nvgFill(vg);
 
-    // temporary
-#if 0
+    // render the overlay RT for temporary / unconfirmed strokes
     // draw a rectangle in canvas space
     nvgResetTransform(vg);
     f = uc->canvas_transform(*this).data();
@@ -273,7 +277,66 @@ void Canvas::render(sol::Context &ctx)
     nvgTransform(vg, f[0],f[1],f[2],f[3],f[4],f[5]);
     nvgFillPaint(vg, m_render_context.nvg_paint(m_render_target_tmp));
     nvgFill(vg);
+}
+
+void Canvas::update_strokes()
+{
+    auto vg = m_render_context.impl();
+
+    // render commited strokes
+    m_render_context.begin_frame(m_render_target);
+    m_render_context.bind(m_render_target);
+    nvgResetTransform(vg);
+    nvgReset(vg);
+
+    auto removed = m_strokes.remove_old_strokes();
+    for (auto& stroke: removed)
+    {
+        auto c = stroke.properties().color;
+        for (auto& pt : stroke.points())
+        {
+#if 1
+            nvgFillColor(vg, nvgRGBAf(c.r,c.g,c.b,c.a*pt.pressure));
+            nvgBeginPath(vg);
+            nvgCircle(vg,
+                pt.position.x,
+                pt.position.y,
+                10.0f*pt.pressure);
+            nvgPathWinding(vg, NVG_SOLID);
+            nvgFill(vg);
 #endif
+        }
+
+    }
+    m_render_context.end_frame();
+
+    // render temporary strokes to overlay render target
+    m_render_context.begin_frame(m_render_target_tmp);
+    m_render_context.bind(m_render_target_tmp);
+
+    glClearColor(0.0f,0.0f,0.0f,0.0f);
+    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
+
+    for (auto s : m_strokes.strokes())
+    {
+        auto& stroke = *s;
+        auto c = stroke.properties().color;
+        for (auto& pt : stroke.points())
+        {
+#if 1
+            nvgFillColor(vg, nvgRGBAf(c.r,c.g,c.b,c.a*pt.pressure));
+            nvgBeginPath(vg);
+            nvgCircle(vg,
+                pt.position.x,
+                pt.position.y,
+                10.0f*pt.pressure);
+            nvgPathWinding(vg, NVG_SOLID);
+            nvgFill(vg);
+#endif
+        }
+    }
+
+    m_render_context.end_frame();
 }
 
 vec2f Canvas::dimensions() const

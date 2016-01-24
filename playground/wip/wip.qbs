@@ -84,6 +84,7 @@ CppApplication {
         "render_context.hpp",
         "result.hpp",
         "sol/MemoryRange.hpp",
+        "sol/Slice.hpp",
         "sol/StringView.hpp",
         "sol/meta/type_name.hpp",
         "util.hpp",
