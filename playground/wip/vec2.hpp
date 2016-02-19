@@ -79,4 +79,10 @@ inline auto normalized(const vec2f v) {
     return v / length(v);
 }
 
+template<typename T>
+inline T cross(const vec2<T> v1, const vec2<T> v2)
+{
+    return (v1.x*v2.y) - (v1.y*v2.x);
+}
+
 

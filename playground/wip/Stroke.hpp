@@ -40,7 +40,9 @@ namespace miro {
         uint16_t user_id() const;
         const StrokeProperties& properties() const;
 
-        std::vector<StrokePoint>& points();
+        sol::Slice<StrokePoint> points();
+     public:
+        void build_geometry();
      private:
         uint64_t m_id;
         uint16_t m_user_id;

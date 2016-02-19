@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "math.hpp"
+
 namespace miro {
 
 void StrokeCollection::begin_stroke(uint16_t user_idx, bool confirmed, StrokeProperties properties)
@@ -75,7 +77,7 @@ std::vector<Stroke> StrokeCollection::remove_old_strokes()
 
     // keep to newest strokes up to a certain number of
     // stroke points
-    const uint32_t MAX_POINT_COUNT = 500;
+    const uint32_t MAX_POINT_COUNT = 250;
     uint32_t point_count = 0;
     int32_t last_i = -1;
     for (int i=m_sorted_strokes.size()-1; i>=0; i--) {
@@ -182,9 +184,93 @@ const StrokeProperties &Stroke::properties() const
     return m_properties;
 }
 
-std::vector<StrokePoint> &Stroke::points()
+sol::Slice<StrokePoint> Stroke::points()
 {
-    return m_points;
+    return sol::make_slice(m_points.data(),m_points.size());
+}
+
+void Stroke::build_geometry()
+{
+#if 0
+    //TODO
+    if (m_points.size() == 0) return;
+    if (m_points.size() == 1) {
+        // TODO create circle
+        return;
+    }
+
+    auto radius = [=](StrokePoint& pt) {
+        return 10.0f*pt.pressure;
+    };
+
+    struct CrossVerts {
+        vec2f left;
+        vec2f center;
+        vec2f right;
+    };
+
+    struct LineBlock {
+        CrossVerts begin;
+        CrossVerts end;
+
+        vec2f dir() { return end.center - begin.center; }
+    };
+
+    auto lb = [=](int i) {
+        auto first = m_points[i];
+        auto second = m_points[i+1];
+        auto delta = second.position - first.position;
+        delta = normalized(delta);
+
+        LineBlock block{
+            CrossVerts{
+                first.position + radius(first)*vec2f{-delta.y,  delta.x},
+                first.position,
+                first.position + radius(first)*vec2f{ delta.y, -delta.x}
+            },
+            CrossVerts{
+                second.position + radius(second)*vec2f{-delta.y,  delta.x},
+                second.position,
+                second.position + radius(second)* vec2f{ delta.y, -delta.x}
+            }
+        };
+    };
+
+    std::vector<LineBlock> blocks;
+    blocks.push_back(lb(0));
+
+    using namespace sol::math;
+
+    for (int i=1; i<m_points.size()-1; i++) {
+        auto& last_line_block = blocks.back();
+        auto  next_line_block = lb(i);
+        // TODO intersect
+        float v = cross(last_line_block.dir(),next_line_block.dir());
+        if (v > 0.0f) // right turn ?
+        {
+            float t_last,t_next;
+            auto d_last = last_line_block.first.right - last_line_block.second.right;
+            auto d_next = next_line_block.second.right - next_line_block.first.right;
+            bool intersect = intersect_lines(
+                last_line_block.second.right, d_last,
+                next_line_block.first.right, d_next,
+                t_last,t_next);
+            if (intersect) {
+                last_line_block.second.right += t_last * d_last;
+                next_line_block.first.right += t_next * d_next;
+            } else {
+
+            }
+
+        } else if (v < 0.0f) { // left turn?
+
+        } else {
+            // TODO
+        }
+    }
+
+    // TODO add arc segments
+#endif
 }
 
 }

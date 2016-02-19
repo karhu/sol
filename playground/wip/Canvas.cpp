@@ -289,24 +289,56 @@ void Canvas::update_strokes()
     nvgResetTransform(vg);
     nvgReset(vg);
 
+    const float radius = 10.0f;
+
     auto removed = m_strokes.remove_old_strokes();
     for (auto& stroke: removed)
     {
-        auto c = stroke.properties().color;
-        for (auto& pt : stroke.points())
-        {
 #if 1
-            nvgFillColor(vg, nvgRGBAf(c.r,c.g,c.b,c.a*pt.pressure));
-            nvgBeginPath(vg);
-            nvgCircle(vg,
-                pt.position.x,
-                pt.position.y,
-                10.0f*pt.pressure);
-            nvgPathWinding(vg, NVG_SOLID);
-            nvgFill(vg);
-#endif
-        }
+        auto c = stroke.properties().color;
+        auto points = stroke.points();
+        StrokePoint prev;
+        if (points.count() > 0) prev = points[0];
+        for (auto& pt : points)
+        {
 
+            auto delta = pt.position - prev.position;
+            float d = sqrt(dot(delta,delta));
+            float steps = ceilf(24*d/radius);
+            float step_size = 1.0f/steps;
+
+            for (int i=0; i<steps; i++) {
+                float w0 = i*step_size;
+                float w1 = 1.0f - w0;
+
+                vec2f pos = w0*prev.position + w1*pt.position;
+
+                nvgFillColor(vg, nvgRGBAf(c.r,c.g,c.b,(2.0/12.0)*0.75f*c.a*pt.pressure));
+                nvgBeginPath(vg);
+                //nvgCircle(vg,pos.x,pos.y,radius*pt.pressure);
+                nvgRect(vg,pos.x - 0.5*radius,pos.y -0.5*radius,radius,radius);
+                nvgPathWinding(vg, NVG_SOLID);
+                nvgFill(vg);
+            }
+            prev = pt;
+        }
+#else
+        auto c = stroke.properties().color;
+        auto points = stroke.points();
+        StrokePoint first;
+        if (points.count() > 0) first = points[0];
+        nvgStrokeColor(vg, nvgRGBAf(c.r,c.g,c.b,1.0f));
+        nvgStrokeWidth(vg,2*radius);
+        nvgBeginPath(vg);
+        nvgLineCap(vg,NVG_ROUND);
+        nvgMoveTo(vg,first.position.x,first.position.y);
+        for (auto& pt : points)
+        {
+            nvgLineTo(vg, pt.position.x, pt.position.y);
+        }
+        nvgPathWinding(vg, NVG_SOLID);
+        nvgStroke(vg);
+#endif
     }
     m_render_context.end_frame();
 
@@ -320,20 +352,51 @@ void Canvas::update_strokes()
     for (auto s : m_strokes.strokes())
     {
         auto& stroke = *s;
-        auto c = stroke.properties().color;
-        for (auto& pt : stroke.points())
-        {
 #if 1
-            nvgFillColor(vg, nvgRGBAf(c.r,c.g,c.b,c.a*pt.pressure));
-            nvgBeginPath(vg);
-            nvgCircle(vg,
-                pt.position.x,
-                pt.position.y,
-                10.0f*pt.pressure);
-            nvgPathWinding(vg, NVG_SOLID);
-            nvgFill(vg);
-#endif
+        auto c = stroke.properties().color;
+        auto points = stroke.points();
+        StrokePoint prev;
+        if (points.count() > 0) prev = points[0];
+        for (auto& pt : points)
+        {
+            auto delta = pt.position - prev.position;
+            float d = sqrt(dot(delta,delta));
+            float steps = ceilf(8*d/radius);
+            float step_size = 1.0f/steps;
+
+            for (int i=0; i<steps; i++) {
+                float w0 = i*step_size;
+                float w1 = 1.0f - w0;
+
+                vec2f pos = w0*prev.position + w1*pt.position;
+
+                nvgFillColor(vg, nvgRGBAf(c.r,c.g,c.b,0.75f*c.a*pt.pressure));
+                nvgBeginPath(vg);
+                //nvgCircle(vg,pos.x,pos.y,radius*pt.pressure);
+                nvgRect(vg,pos.x - 0.5*radius,pos.y -0.5*radius,radius,radius);
+                nvgPathWinding(vg, NVG_SOLID);
+                nvgFill(vg);
+            }
+            prev = pt;
         }
+#else
+        auto& stroke = *s;
+        auto c = stroke.properties().color;
+        auto points = stroke.points();
+        StrokePoint first;
+        if (points.count() > 0) first = points[0];
+        nvgStrokeColor(vg, nvgRGBAf(c.r,c.g,c.b,1.0f));
+        nvgStrokeWidth(vg,2*radius);
+        nvgBeginPath(vg);
+        nvgLineCap(vg,NVG_ROUND);
+        nvgMoveTo(vg,first.position.x,first.position.y);
+        for (auto& pt : points)
+        {
+            nvgLineTo(vg, pt.position.x, pt.position.y);
+        }
+        nvgPathWinding(vg, NVG_SOLID);
+        nvgStroke(vg);
+#endif
     }
 
     m_render_context.end_frame();

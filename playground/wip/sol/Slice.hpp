@@ -25,7 +25,7 @@ namespace sol
         const T* ptr() const;
 
         /// element count
-        uint64_t size() const;
+        uint64_t count() const;
     public:
         void trim_front(uint32_t n);
         void trim_back(uint32_t n);
@@ -89,7 +89,7 @@ namespace sol
     }
 
     template<typename T> inline
-    uint64_t Slice<T>::size() const
+    uint64_t Slice<T>::count() const
     {
         return _size;
     }
@@ -116,12 +116,12 @@ namespace sol
     T* begin(sol::Slice<T>& a) { return a.ptr(); }
 
     template<typename T> constexpr
-    T* end (sol::Slice<T>& a) { return a.ptr() + a.size(); }
+    T* end (sol::Slice<T>& a) { return a.ptr() + a.count(); }
 
     template<typename T> constexpr
     const T* begin(const sol::Slice<T>& a) { return a.ptr(); }
 
     template<typename T> constexpr
-    const T* end (const sol::Slice<T>& a) { return a.ptr() + a.size(); }
+    const T* end (const sol::Slice<T>& a) { return a.ptr() + a.count(); }
 
 } // namespace std

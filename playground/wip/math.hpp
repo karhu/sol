@@ -14,7 +14,7 @@ namespace sol {
         return r * 180.0f / PI;
     }
 
-    vec2f barycentric_coordinates(vec2f a, vec2f b, vec2f c, vec2f p) {
+    inline vec2f barycentric_coordinates(vec2f a, vec2f b, vec2f c, vec2f p) {
         // source: http://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
         vec2f v0 = b - a;
         vec2f v1 = c - a;
@@ -36,6 +36,31 @@ namespace sol {
         return value > max ? max :
                value < min ? min :
                value;
+    }
+
+    namespace  math {
+        inline bool intersect_lines(
+            vec2f pt1, vec2f dir1,
+            vec2f pt2, vec2f dir2,
+            float& o_t1, float& o_t2)
+        {
+            auto nom = pt2 - pt1;
+            auto denom = cross(dir1,dir2);
+            auto nom1 = cross(nom,dir2);
+            auto nom2 = cross(nom,dir1);
+            if (denom == 0) {
+                o_t1 = o_t2 = 0.0f;
+                if (nom2 == 0) {
+                    // collinear
+                    return true;
+                }
+                // parallel
+                return false;
+            }
+            o_t1 = nom1 / denom;
+            o_t2 = nom2 / denom;
+            return true;
+        }
     }
 
 }
